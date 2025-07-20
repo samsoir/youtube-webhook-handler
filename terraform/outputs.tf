@@ -1,6 +1,6 @@
 output "webhook_url" {
   description = "The URL of the deployed Cloud Function webhook"
-  value       = google_cloudfunctions2_function.youtube_webhook.service_config[0].uri
+  value       = google_cloudfunctions2_function.youtube_webhook.url
 }
 
 output "function_name" {

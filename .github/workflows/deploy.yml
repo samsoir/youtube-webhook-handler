@@ -74,14 +74,31 @@ jobs:
         SA_NAME="yt-webhook-production-2dfc5d65"
         FUNCTION_NAME="youtube-webhook-production"
         
-        # Import bucket if it exists (ignore errors if already imported)
-        terraform -chdir=terraform import google_storage_bucket.function_source "${BUCKET_NAME}" || true
+        # Check and import resources only if not already in state
         
-        # Import service account if it exists (ignore errors if already imported)  
-        terraform -chdir=terraform import google_service_account.function_sa "projects/${{ secrets.GCP_PROJECT_ID }}/serviceAccounts/${SA_NAME}@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com" || true
+        # Import bucket if it exists and not in state
+        if ! terraform -chdir=terraform state show google_storage_bucket.function_source >/dev/null 2>&1; then
+          echo "Importing storage bucket..."
+          terraform -chdir=terraform import google_storage_bucket.function_source "${BUCKET_NAME}" || true
+        else
+          echo "Storage bucket already in state"
+        fi
         
-        # Import Cloud Function if it exists (ignore errors if already imported)
-        terraform -chdir=terraform import google_cloudfunctions2_function.youtube_webhook "projects/${{ secrets.GCP_PROJECT_ID }}/locations/us-central1/functions/${FUNCTION_NAME}" || true
+        # Import service account if it exists and not in state
+        if ! terraform -chdir=terraform state show google_service_account.function_sa >/dev/null 2>&1; then
+          echo "Importing service account..."
+          terraform -chdir=terraform import google_service_account.function_sa "projects/${{ secrets.GCP_PROJECT_ID }}/serviceAccounts/${SA_NAME}@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com" || true
+        else
+          echo "Service account already in state"
+        fi
+        
+        # Import Cloud Function if it exists and not in state
+        if ! terraform -chdir=terraform state show google_cloudfunctions2_function.youtube_webhook >/dev/null 2>&1; then
+          echo "Importing Cloud Function..."
+          terraform -chdir=terraform import google_cloudfunctions2_function.youtube_webhook "projects/${{ secrets.GCP_PROJECT_ID }}/locations/us-central1/functions/${FUNCTION_NAME}" || true
+        else
+          echo "Cloud Function already in state"
+        fi
 
     - name: Terraform Plan
       run: terraform -chdir=terraform plan -out=tfplan
