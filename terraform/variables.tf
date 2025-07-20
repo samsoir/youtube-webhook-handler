@@ -67,8 +67,8 @@ variable "labels" {
   description = "Labels to apply to resources"
   type        = map(string)
   default = {
-    project     = "defreyssi-net"
-    component   = "youtube-webhook"
-    managed-by  = "terraform"
+    project    = "defreyssi-net"
+    component  = "youtube-webhook"
+    managed-by = "terraform"
   }
 }

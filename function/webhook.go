@@ -13,12 +13,13 @@ import (
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
 )
 
-// YouTube Atom feed structures
+// AtomFeed represents the structure of a YouTube Atom feed notification
 type AtomFeed struct {
 	XMLName xml.Name `xml:"feed"`
 	Entry   *Entry   `xml:"entry"`
 }
 
+// Entry represents a single video entry in the YouTube Atom feed
 type Entry struct {
 	VideoID   string `xml:"http://www.youtube.com/xml/schemas/2015 videoId"`
 	ChannelID string `xml:"http://www.youtube.com/xml/schemas/2015 channelId"`
@@ -27,7 +28,7 @@ type Entry struct {
 	Updated   string `xml:"updated"`
 }
 
-// GitHub repository dispatch payload
+// GitHubDispatch represents the payload structure for GitHub repository dispatch events
 type GitHubDispatch struct {
 	EventType     string                 `json:"event_type"`
 	ClientPayload map[string]interface{} `json:"client_payload"`

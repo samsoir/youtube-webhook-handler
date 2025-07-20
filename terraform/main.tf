@@ -1,8 +1,9 @@
 locals {
   function_name = "${var.function_name}-${var.environment}"
   # Sanitize bucket name to meet GCS requirements (lowercase, no spaces, start/end with alphanumeric)
-  project_sanitized = lower(replace(replace(var.project_id, " ", "-"), "_", "-"))
-  bucket_name       = "${local.project_sanitized}-${var.function_name}-source"
+  project_sanitized = replace(replace(replace(lower(var.project_id), " ", ""), "-", ""), "_", "")
+  # Ensure bucket name starts with alphanumeric and is valid
+  bucket_name = "gcs-${local.project_sanitized}-${var.function_name}-source"
 
   common_labels = merge(var.labels, {
     environment = var.environment
@@ -43,9 +44,9 @@ resource "google_storage_bucket" "function_source" {
   name     = local.bucket_name
   location = var.region
   project  = var.project_id
-  
+
   uniform_bucket_level_access = true
-  
+
   # Lifecycle management to clean up old versions
   lifecycle_rule {
     condition {
@@ -55,7 +56,7 @@ resource "google_storage_bucket" "function_source" {
       type = "Delete"
     }
   }
-  
+
   lifecycle_rule {
     condition {
       num_newer_versions = 3
@@ -64,13 +65,13 @@ resource "google_storage_bucket" "function_source" {
       type = "Delete"
     }
   }
-  
+
   versioning {
     enabled = true
   }
-  
+
   labels = local.common_labels
-  
+
   depends_on = [google_project_service.required_apis]
 }
 
@@ -87,7 +88,7 @@ resource "google_storage_bucket_object" "function_source" {
   name   = "function-source-${data.archive_file.function_source.output_md5}.zip"
   bucket = google_storage_bucket.function_source.name
   source = data.archive_file.function_source.output_path
-  
+
   metadata = {
     md5Hash = data.archive_file.function_source.output_md5
   }
@@ -113,47 +114,47 @@ resource "google_cloudfunctions2_function" "youtube_webhook" {
   name     = local.function_name
   location = var.region
   project  = var.project_id
-  
+
   description = "YouTube webhook handler for triggering website updates"
-  
+
   build_config {
     runtime     = "go121"
     entry_point = "YouTubeWebhook"
-    
+
     source {
       storage_source {
         bucket = google_storage_bucket.function_source.name
         object = google_storage_bucket_object.function_source.name
       }
     }
-    
+
     environment_variables = {
       GOOS   = "linux"
       GOARCH = "amd64"
     }
   }
-  
+
   service_config {
     max_instance_count    = var.max_instances
     min_instance_count    = var.min_instances
     available_memory      = var.function_memory
     timeout_seconds       = var.function_timeout
     service_account_email = google_service_account.function_sa.email
-    
+
     environment_variables = {
       GITHUB_TOKEN = var.github_token
       REPO_OWNER   = var.repo_owner
       REPO_NAME    = var.repo_name
       ENVIRONMENT  = var.environment
     }
-    
+
     # Security settings
     ingress_settings               = "ALLOW_ALL"
     all_traffic_on_latest_revision = true
   }
-  
+
   labels = local.common_labels
-  
+
   depends_on = [
     google_project_service.required_apis,
     google_storage_bucket_object.function_source
