@@ -1,4 +1,4 @@
-package webhook
+package main
 
 import (
 	"bytes"
@@ -224,4 +224,9 @@ func isNewVideo(entry *Entry) bool {
 	}
 
 	return true
+}
+
+func main() {
+	// This function is not needed for Cloud Functions, but it's required to
+	// make `go run .` work.
 }
