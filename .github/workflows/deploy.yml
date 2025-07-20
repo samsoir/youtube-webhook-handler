@@ -109,7 +109,9 @@ jobs:
     - name: Get function URL
       id: function-url
       run: |
-        URL=$(terraform -chdir=terraform output -raw webhook_url)
+        # Get the URL and clean any debug output from Terraform wrapper
+        URL=$(terraform -chdir=terraform output -raw webhook_url | head -n1 | cut -d':' -f1-3)
+        echo "Function URL: $URL"
         echo "url=$URL" >> $GITHUB_OUTPUT
 
     - name: Test deployed function
