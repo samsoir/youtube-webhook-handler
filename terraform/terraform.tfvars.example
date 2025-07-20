@@ -1,0 +1,26 @@
+# Copy this file to terraform.tfvars and fill in your values
+# terraform.tfvars is gitignored for security
+
+# Required variables
+project_id    = "your-google-cloud-project-id"
+github_token  = "ghp_your_github_personal_access_token"
+
+# Optional variables (defaults provided)
+region       = "us-central1"
+repo_owner   = "samsoir"
+repo_name    = "defreyssi.net-v2"
+environment  = "prod"
+
+# Function configuration
+function_name    = "youtube-webhook"
+function_memory  = "128Mi"
+function_timeout = 30
+max_instances    = 10
+min_instances    = 0
+
+# Labels
+labels = {
+  project     = "defreyssi-net"
+  component   = "youtube-webhook"
+  managed-by  = "terraform"
+}
