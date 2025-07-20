@@ -133,16 +133,17 @@ jobs:
     - name: Run security scan
       run: make security-scan
 
-    - name: Run Gosec Security Scanner
-      uses: securego/gosec@master
-      with:
-        args: '-fmt sarif -out gosec-results.sarif ./function/...'
+    - name: Install and run Gosec
+      run: |
+        cd function
+        go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest
+        gosec -fmt sarif -out gosec-results.sarif -stdout ./...
         
     - name: Upload SARIF file
       uses: github/codeql-action/upload-sarif@v3
       if: always()
       with:
-        sarif_file: gosec-results.sarif
+        sarif_file: function/gosec-results.sarif
 
   terraform:
     name: Terraform Validate
