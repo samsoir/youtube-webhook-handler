@@ -8,7 +8,6 @@ require (
 )
 
 require (
-	cloud.google.com/go/functions v1.15.1 // indirect
 	github.com/cloudevents/sdk-go/v2 v2.15.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/google/uuid v1.4.0 // indirect
