@@ -1,6 +1,8 @@
 locals {
   function_name = "${var.function_name}-${var.environment}"
-  bucket_name   = "${var.project_id}-${var.function_name}-source"
+  # Sanitize bucket name to meet GCS requirements (lowercase, no spaces, start/end with alphanumeric)
+  project_sanitized = lower(replace(replace(var.project_id, " ", "-"), "_", "-"))
+  bucket_name       = "${local.project_sanitized}-${var.function_name}-source"
 
   common_labels = merge(var.labels, {
     environment = var.environment
