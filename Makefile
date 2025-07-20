@@ -96,7 +96,7 @@ build-linux: ## Build for Linux (Cloud Functions target)
 run-local: ## Run the function locally using Functions Framework
 	@echo "$(YELLOW)Starting local development server...$(NC)"
 	@echo "$(BLUE)Function will be available at: http://localhost:8080$(NC)"
-	@cd $(FUNCTION_DIR) && go run github.com/GoogleCloudPlatform/functions-framework-go/funcframework -target=YouTubeWebhook -port=8080
+	@cd $(FUNCTION_DIR) && go get cloud.google.com/go/functions/metadata && go run github.com/GoogleCloudPlatform/functions-framework-go/funcframework -target=YouTubeWebhook -port=8080
 
 test-local: ## Test the local function with a sample request
 	@echo "$(YELLOW)Testing local function...$(NC)"
