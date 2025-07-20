@@ -1,0 +1,7 @@
+- Harden our CI security by turning off continue on error
+- Go 1.21 will be deprecated on Sep 3, 2025 and decommissioned on Mar 3, 2026. Please update to the latest runtime version available. 
+- Terraform version is old, 1.12.x is latest
+- Github Workflow CI and Deploy run concurrently, we want deploy only to run on successful CI
+- Github warning about repository security; Your main branch isn't protected
+- README is too long, we should refactor
+

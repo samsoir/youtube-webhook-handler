@@ -125,7 +125,7 @@ resource "google_cloudfunctions2_function" "youtube_webhook" {
   description = "YouTube webhook handler for triggering website updates"
 
   build_config {
-    runtime     = "go121"
+    runtime     = "go123"
     entry_point = "YouTubeWebhook"
 
     source {
