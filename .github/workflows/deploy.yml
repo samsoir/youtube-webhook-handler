@@ -72,12 +72,16 @@ jobs:
         PROJECT_SANITIZED=$(echo "${{ secrets.GCP_PROJECT_ID }}" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]//g')
         BUCKET_NAME="gcs-${PROJECT_SANITIZED}-youtube-webhook-source"
         SA_NAME="yt-webhook-production-2dfc5d65"
+        FUNCTION_NAME="youtube-webhook-production"
         
         # Import bucket if it exists (ignore errors if already imported)
         terraform -chdir=terraform import google_storage_bucket.function_source "${BUCKET_NAME}" || true
         
         # Import service account if it exists (ignore errors if already imported)  
         terraform -chdir=terraform import google_service_account.function_sa "projects/${{ secrets.GCP_PROJECT_ID }}/serviceAccounts/${SA_NAME}@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com" || true
+        
+        # Import Cloud Function if it exists (ignore errors if already imported)
+        terraform -chdir=terraform import google_cloudfunctions2_function.youtube_webhook "projects/${{ secrets.GCP_PROJECT_ID }}/locations/us-central1/functions/${FUNCTION_NAME}" || true
 
     - name: Terraform Plan
       run: terraform -chdir=terraform plan -out=tfplan
