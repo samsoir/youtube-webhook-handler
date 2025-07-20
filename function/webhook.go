@@ -55,7 +55,9 @@ func YouTubeWebhook(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
-		w.Write([]byte("Method not allowed"))
+		if _, err := w.Write([]byte("Method not allowed")); err != nil {
+			fmt.Printf("Error writing response: %v\n", err)
+		}
 	}
 }
 
@@ -68,7 +70,9 @@ func handleVerificationChallenge(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(challenge))
+	if _, err := w.Write([]byte(challenge)); err != nil {
+		fmt.Printf("Error writing response: %v\n", err)
+	}
 }
 
 // handleNotification processes YouTube webhook notifications
@@ -77,40 +81,52 @@ func handleNotification(w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("Failed to read request body"))
+		if _, err := w.Write([]byte("Failed to read request body")); err != nil {
+			fmt.Printf("Error writing response: %v\n", err)
+		}
 		return
 	}
 
 	var feed AtomFeed
 	if err := xml.Unmarshal(body, &feed); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("Invalid XML"))
+		if _, err := w.Write([]byte("Invalid XML")); err != nil {
+			fmt.Printf("Error writing response: %v\n", err)
+		}
 		return
 	}
 
 	// Handle empty notifications
 	if feed.Entry == nil {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("No video data"))
+		if _, err := w.Write([]byte("No video data")); err != nil {
+			fmt.Printf("Error writing response: %v\n", err)
+		}
 		return
 	}
 
 	// Check if this is a new video or just an update
 	if !isNewVideo(feed.Entry) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("Video update ignored"))
+		if _, err := w.Write([]byte("Video update ignored")); err != nil {
+			fmt.Printf("Error writing response: %v\n", err)
+		}
 		return
 	}
 
 	// Trigger GitHub workflow
 	if err := triggerGitHubWorkflow(feed.Entry); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("GitHub API error"))
+		if _, err := w.Write([]byte("GitHub API error")); err != nil {
+			fmt.Printf("Error writing response: %v\n", err)
+		}
 		return
 	}
 
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Webhook processed successfully"))
+	if _, err := w.Write([]byte("Webhook processed successfully")); err != nil {
+		fmt.Printf("Error writing response: %v\n", err)
+	}
 }
 
 // triggerGitHubWorkflow sends a repository dispatch event to GitHub
