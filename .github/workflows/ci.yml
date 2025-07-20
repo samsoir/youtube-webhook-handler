@@ -36,7 +36,6 @@ jobs:
     - name: Download dependencies
       run: |
         cd function
-        go get cloud.google.com/go/functions/metadata
         go mod tidy
         go mod download
 
@@ -231,6 +230,13 @@ jobs:
         key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
         restore-keys: |
           ${{ runner.os }}-go-
+
+    - name: Download dependencies
+      run: |
+        cd function
+        go get cloud.google.com/go/functions/metadata
+        go mod tidy
+        go mod download
 
     - name: Run benchmark tests
       run: make benchmark
