@@ -134,18 +134,9 @@ jobs:
       run: make security-scan
 
     - name: Run Gosec Security Scanner
-      run: |
-        cd function
-        curl -sfL https://raw.githubusercontent.com/securecodewarrior/gosec/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.21.4
-        export PATH="$(go env GOPATH)/bin:$PATH"
-        gosec -no-fail -fmt sarif -out results.sarif ./...
-        
-    - name: Upload SARIF file
-      uses: github/codeql-action/upload-sarif@v3
+      uses: securego/gosec@master
       with:
-        sarif_file: function/results.sarif
-      if: always()
-      continue-on-error: true
+        args: './function/...'
 
   terraform:
     name: Terraform Validate
