@@ -429,3 +429,43 @@ func BenchmarkWebhook_ValidNotification(b *testing.B) {
 		}
 	}
 }
+
+// failingResponseWriter simulates a response writer that fails on Write calls
+type failingResponseWriter struct {
+	*httptest.ResponseRecorder
+}
+
+func (f *failingResponseWriter) Write(data []byte) (int, error) {
+	return 0, fmt.Errorf("simulated write error")
+}
+
+func TestWebhook_WriteErrors(t *testing.T) {
+	tests := []struct {
+		name   string
+		method string
+		url    string
+		body   string
+	}{
+		{"Method not allowed write error", "DELETE", "/", ""},
+		{"Challenge write error", "GET", "/?hub.challenge=test", ""},
+		{"Bad request write error", "POST", "/", "invalid body"},
+		{"Invalid XML write error", "POST", "/", invalidXMLNotification},
+		{"Empty notification write error", "POST", "/", emptyXMLNotification},
+		{"Old video write error", "POST", "/", oldVideoXMLNotification},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(tt.method, tt.url, strings.NewReader(tt.body))
+			req.Header.Set("Content-Type", "application/xml")
+			
+			// Use failing response writer
+			w := &failingResponseWriter{ResponseRecorder: httptest.NewRecorder()}
+			
+			// This should not panic even with write errors
+			assert.NotPanics(t, func() {
+				YouTubeWebhook(w, req)
+			})
+		})
+	}
+}
