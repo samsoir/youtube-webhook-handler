@@ -100,6 +100,8 @@ resource "google_service_account" "function_sa" {
   display_name = "YouTube Webhook Function Service Account"
   description  = "Service account for the YouTube webhook Cloud Function"
   project      = var.project_id
+
+  depends_on = [google_project_service.required_apis]
 }
 
 # IAM binding for the service account
@@ -107,6 +109,8 @@ resource "google_project_iam_member" "function_sa_logging" {
   project = var.project_id
   role    = "roles/logging.logWriter"
   member  = "serviceAccount:${google_service_account.function_sa.email}"
+
+  depends_on = [google_project_service.required_apis]
 }
 
 # Cloud Function (Gen 2)
