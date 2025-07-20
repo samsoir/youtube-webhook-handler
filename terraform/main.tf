@@ -99,7 +99,7 @@ resource "google_storage_bucket_object" "function_source" {
 
 # Service account for the Cloud Function
 resource "google_service_account" "function_sa" {
-  account_id   = "${var.function_name}-${var.environment}-${local.unique_suffix}"
+  account_id   = "yt-webhook-${var.environment}-${local.unique_suffix}"
   display_name = "YouTube Webhook Function Service Account (${var.environment})"
   description  = "Service account for the YouTube webhook Cloud Function (${var.environment})"
   project      = var.project_id
