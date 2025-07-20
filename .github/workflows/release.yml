@@ -1,0 +1,60 @@
+name: Release
+
+on:
+  push:
+    tags: [ 'v*' ]
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Generate changelog
+      id: changelog
+      run: |
+        # Get the previous tag
+        PREV_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
+        
+        # Generate changelog
+        if [ -n "$PREV_TAG" ]; then
+          CHANGELOG=$(git log ${PREV_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
+        else
+          CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges)
+        fi
+        
+        # Save changelog to output
+        echo "changelog<<EOF" >> $GITHUB_OUTPUT
+        echo "$CHANGELOG" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+
+    - name: Create Release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref_name }}
+        release_name: YouTube Webhook Handler ${{ github.ref_name }}
+        body: |
+          ## YouTube Webhook Handler ${{ github.ref_name }}
+          
+          ### Changes
+          ${{ steps.changelog.outputs.changelog }}
+          
+          ### Deployment
+          This release is automatically deployed to production when pushed to the `main` branch.
+          
+          ### Technical Details
+          - **Go Version:** 1.21
+          - **Test Coverage:** 90.2%+
+          - **Infrastructure:** Google Cloud Functions + Terraform
+          
+          ### Rollback
+          To rollback, revert the main branch to the previous working commit and push.
+        draft: false
+        prerelease: false

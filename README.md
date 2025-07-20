@@ -20,7 +20,7 @@ YouTube → PubSubHubbub → Cloud Function → GitHub API → Actions Workflow 
 - **Platform**: Google Cloud Functions (Gen 2)
 - **Infrastructure**: Terraform (Infrastructure as Code)
 - **Testing**: Test-Driven Development with 90.2% coverage
-- **CI/CD**: GitHub Actions
+- **CI/CD**: GitHub Actions with automated deployment
 
 ## 📁 Project Structure
 
@@ -36,8 +36,16 @@ defreyssi.net-youtube-webhook/
 │   ├── variables.tf        # Input variables
 │   ├── outputs.tf          # Output values
 │   └── terraform.tfvars.example  # Configuration template
+├── .github/                # GitHub Actions and configuration
+│   ├── workflows/          # CI/CD workflows
+│   │   ├── ci.yml         # Continuous integration
+│   │   ├── deploy.yml     # Production deployment
+│   │   ├── release.yml    # Release management
+│   │   └── dependabot-auto-merge.yml  # Dependency automation
+│   └── dependabot.yml     # Dependabot configuration
 ├── Makefile                # Build automation and commands
 ├── .gitignore              # Git ignore patterns
+├── LICENSE                 # MIT License
 └── README.md               # This documentation
 ```
 
@@ -143,31 +151,57 @@ make test-watch
 
 ## 🚀 Deployment
 
-### 1. Infrastructure Deployment
+### Automated Deployment (Recommended)
+
+The project uses GitHub Actions for automated CI/CD. Simply push to the `main` branch to trigger automatic deployment to production.
+
+#### Required GitHub Repository Secrets
+
+Configure these secrets in your GitHub repository settings (`Settings → Secrets and variables → Actions`):
+
+| Secret Name | Description | Example |
+|-------------|-------------|---------|
+| `GCP_CREDENTIALS` | Google Cloud service account JSON key | `{"type": "service_account", ...}` |
+| `GCP_PROJECT_ID` | Your Google Cloud project ID | `my-project-123456` |
+| `GITHUB_TOKEN_WEBHOOK` | GitHub Personal Access Token with `repo` scope | `ghp_xxxxxxxxxxxxxxxxxxxx` |
+| `TARGET_REPO_NAME` | Repository name to trigger workflows | `defreyssi.net-v2` |
+
+#### Setting up Google Cloud Service Account
+
+1. Create a service account in Google Cloud Console
+2. Grant the following roles:
+   - Cloud Functions Admin
+   - Storage Admin
+   - Service Account User
+   - Project IAM Admin (for function permissions)
+3. Download the JSON key file
+4. Copy the entire JSON content to the `GCP_CREDENTIALS` secret
+
+#### Deployment Process
+
 ```bash
-# Initialize Terraform
-make terraform-init
+# Trigger deployment
+git push origin main
 
-# Plan deployment
-make terraform-plan
-
-# Apply infrastructure
-make terraform-apply
+# Or manually trigger via GitHub Actions UI
+# Go to Actions → Deploy → Run workflow
 ```
 
-### 2. Function Deployment
-```bash
-# Deploy function to Google Cloud
-make deploy-function
-```
+### Manual Deployment (Development)
 
-### 3. Complete Deployment Pipeline
+For local development and testing:
+
 ```bash
 # Run all pre-deployment checks
 make pre-deploy
 
-# Deploy infrastructure and function
-make terraform-apply && make deploy-function
+# Manual Terraform deployment
+make terraform-init
+make terraform-plan
+make terraform-apply
+
+# Manual function deployment
+make deploy-function
 ```
 
 ## 🔧 Configuration
@@ -322,6 +356,64 @@ The service uses intelligent timestamp analysis to distinguish new videos from u
 
 This prevents unnecessary workflow triggers for video metadata updates.
 
+## ⚙️ GitHub Actions Workflows
+
+The project includes comprehensive CI/CD automation with four main workflows:
+
+### 🔄 Continuous Integration (`ci.yml`)
+
+**Triggers:** Push/PR to main or develop branches
+
+**Jobs:**
+- **Test** - Runs full test suite with 85% coverage enforcement
+- **Lint** - Code formatting, go vet, and golint checks
+- **Security** - Vulnerability scanning with Gosec and SARIF reports
+- **Terraform** - Validates and formats Terraform configuration
+- **Build** - Creates Linux binary for Cloud Functions deployment
+- **Integration Test** - Benchmarks and local function testing
+
+### 🚀 Production Deployment (`deploy.yml`)
+
+**Triggers:** Push to main branch or manual dispatch
+
+**Process:**
+1. Runs full test suite
+2. Builds function binary
+3. Creates Terraform variables from GitHub secrets
+4. Deploys infrastructure with Terraform
+5. Tests deployed function endpoint
+6. Reports deployment status
+
+### 📦 Release Management (`release.yml`)
+
+**Triggers:** Git tags (v*)
+
+**Features:**
+- Auto-generates changelog from git commits
+- Creates GitHub releases with deployment information
+- Includes technical details and rollback instructions
+
+### 🤖 Dependency Management
+
+**Dependabot Configuration:**
+- Weekly updates for Go modules, GitHub Actions, and Terraform
+- Auto-review assignment to repository owner
+- Conventional commit message formatting
+
+**Auto-merge Workflow:**
+- Automatically merges minor and patch dependency updates
+- Requires CI to pass before merging
+- Major updates require manual review
+
+### 🔧 GitHub Actions Setup
+
+1. **Configure Repository Secrets** (see deployment section below)
+2. **Enable Actions** in repository settings
+3. **Configure Branch Protection** (optional but recommended):
+   - Require PR reviews for main branch
+   - Require status checks to pass
+   - Require up-to-date branches before merging
+
 ## 🤝 Contributing
 
 1. Follow Test-Driven Development (TDD)
@@ -329,6 +421,8 @@ This prevents unnecessary workflow triggers for video metadata updates.
 3. Run `make pre-commit` before committing
 4. Update documentation for new features
 5. Use conventional commit messages
+6. All PRs must pass CI workflows before merging
+7. Deployment happens automatically on merge to main
 
 ## 📈 Metrics
 

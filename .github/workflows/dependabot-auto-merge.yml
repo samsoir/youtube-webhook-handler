@@ -1,0 +1,48 @@
+name: Dependabot Auto-merge
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  auto-merge:
+    name: Auto-merge Dependabot PRs
+    runs-on: ubuntu-latest
+    if: github.actor == 'dependabot[bot]'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Check if PR is from Dependabot
+      id: check-dependabot
+      run: |
+        if [[ "${{ github.actor }}" == "dependabot[bot]" ]]; then
+          echo "is_dependabot=true" >> $GITHUB_OUTPUT
+        else
+          echo "is_dependabot=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Wait for CI to complete
+      if: steps.check-dependabot.outputs.is_dependabot == 'true'
+      uses: fountainhead/action-wait-for-check@v1.1.0
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        checkName: CI
+        ref: ${{ github.event.pull_request.head.sha }}
+        timeoutSeconds: 600
+
+    - name: Auto-merge minor and patch updates
+      if: steps.check-dependabot.outputs.is_dependabot == 'true'
+      run: |
+        # Extract update type from PR title
+        PR_TITLE="${{ github.event.pull_request.title }}"
+        
+        if [[ "$PR_TITLE" == *"minor"* ]] || [[ "$PR_TITLE" == *"patch"* ]]; then
+          echo "Auto-merging minor/patch update"
+          gh pr merge ${{ github.event.pull_request.number }} --auto --squash
+        else
+          echo "Major update detected - manual review required"
+        fi
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
