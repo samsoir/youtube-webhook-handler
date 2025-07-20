@@ -197,11 +197,10 @@ security-scan: ## Run security scan on dependencies
 dev-setup: setup terraform-init ## Complete development setup
 	@echo "$(GREEN)✓ Development environment fully set up$(NC)"
 	@echo "$(BLUE)Next steps:$(NC)"
-	@echo "  1. Copy terraform/terraform.tfvars.example to terraform/terraform.tfvars"
-	@echo "  2. Fill in your configuration values"
-	@echo "  3. Run 'make terraform-plan' to plan infrastructure"
-	@echo "  4. Run 'make test' to run tests"
-	@echo "  5. Run 'make run-local' to start local development"
+	@echo "  1. Create terraform/terraform.tfvars with your configuration values"
+	@echo "  2. Run 'make terraform-plan' to plan infrastructure"
+	@echo "  3. Run 'make test' to run tests"
+	@echo "  4. Run 'make run-local' to start local development"
 
 dev-test: test vet fmt ## Quick development test cycle
 	@echo "$(GREEN)✓ Development checks passed$(NC)"

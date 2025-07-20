@@ -35,7 +35,7 @@ defreyssi.net-youtube-webhook/
 │   ├── main.tf             # Main Terraform configuration
 │   ├── variables.tf        # Input variables
 │   ├── outputs.tf          # Output values
-│   └── terraform.tfvars.example  # Configuration template
+│   └── versions.tf         # Terraform and provider versions
 ├── .github/                # GitHub Actions and configuration
 │   ├── workflows/          # CI/CD workflows
 │   │   ├── ci.yml         # Continuous integration
@@ -82,11 +82,19 @@ make dev-setup
 ```
 
 ### 2. Configure Environment
-Copy and fill the configuration template:
+For local development, create a Terraform variables file (never commit this file):
+
 ```bash
-cp terraform/terraform.tfvars.example terraform/terraform.tfvars
-# Edit terraform/terraform.tfvars with your values
+cat > terraform/terraform.tfvars << EOF
+project_id    = "your-google-cloud-project-id"
+github_token  = "your-github-personal-access-token"
+repo_owner    = "your-github-username"
+repo_name     = "target-repository-name"
+environment   = "dev"
+EOF
 ```
+
+**⚠️ Security Note:** The `terraform.tfvars` file contains sensitive credentials and is automatically excluded by `.gitignore`. Never commit credential files to version control.
 
 Required configuration:
 - `project_id`: Your Google Cloud project ID
@@ -306,11 +314,23 @@ jobs:
 
 ## 🛡️ Security Considerations
 
-- GitHub token stored securely in Terraform state
-- Function runs with minimal IAM permissions
-- Input validation and sanitization
-- No sensitive data in logs
-- HTTPS-only communication
+### Credential Management
+- **GitHub Secrets**: All production credentials stored in GitHub repository secrets
+- **Terraform Variables**: Created dynamically in CI/CD, never committed to repository
+- **Local Development**: `terraform.tfvars` excluded by `.gitignore`
+- **Service Account**: Minimal IAM permissions with least-privilege principle
+
+### Application Security
+- **Input validation and sanitization** for all webhook payloads
+- **HTTPS-only communication** for all external API calls
+- **No sensitive data in logs** or error messages
+- **Function isolation** with Google Cloud Functions security model
+- **Timeout controls** to prevent resource exhaustion
+
+### Infrastructure Security
+- **Google Cloud IAM** controls function permissions
+- **Terraform state** managed securely (recommend remote state for production)
+- **Network security** with Cloud Functions built-in protections
 
 ## 🧰 Available Commands
 
