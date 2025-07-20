@@ -1,7 +1,7 @@
 locals {
   function_name = "${var.function_name}-${var.environment}"
   bucket_name   = "${var.project_id}-${var.function_name}-source"
-  
+
   common_labels = merge(var.labels, {
     environment = var.environment
   })
@@ -29,10 +29,10 @@ resource "google_project_service" "required_apis" {
     "storage.googleapis.com",
     "iam.googleapis.com"
   ])
-  
+
   project = var.project_id
   service = each.value
-  
+
   disable_on_destroy = false
 }
 
