@@ -4,6 +4,8 @@ locals {
   project_sanitized = replace(replace(replace(lower(var.project_id), " ", ""), "-", ""), "_", "")
   # Ensure bucket name starts with alphanumeric and is valid
   bucket_name = "gcs-${local.project_sanitized}-${var.function_name}-source"
+  # Generate unique suffix for service account to avoid conflicts
+  unique_suffix = substr(sha256("${var.project_id}-${var.function_name}-${var.environment}"), 0, 8)
 
   common_labels = merge(var.labels, {
     environment = var.environment
@@ -97,7 +99,7 @@ resource "google_storage_bucket_object" "function_source" {
 
 # Service account for the Cloud Function
 resource "google_service_account" "function_sa" {
-  account_id   = "${var.function_name}-${var.environment}-sa"
+  account_id   = "${var.function_name}-${var.environment}-${local.unique_suffix}"
   display_name = "YouTube Webhook Function Service Account (${var.environment})"
   description  = "Service account for the YouTube webhook Cloud Function (${var.environment})"
   project      = var.project_id
