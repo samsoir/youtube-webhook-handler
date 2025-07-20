@@ -1,7 +1,7 @@
 # YouTube Webhook Project Makefile
 
 # Variables
-GO_VERSION := 1.21
+GO_VERSION := 1.23
 FUNCTION_DIR := function
 TERRAFORM_DIR := terraform
 PROJECT_NAME := youtube-webhook
@@ -146,7 +146,7 @@ deploy-function: build-linux ## Deploy function to Google Cloud
 	@echo "$(YELLOW)Deploying function to Google Cloud...$(NC)"
 	@cd $(FUNCTION_DIR) && gcloud functions deploy $(PROJECT_NAME) \
 		--gen2 \
-		--runtime go121 \
+		--runtime go123 \
 		--trigger-http \
 		--allow-unauthenticated \
 		--entry-point YouTubeWebhook \
