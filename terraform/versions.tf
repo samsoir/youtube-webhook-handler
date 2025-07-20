@@ -12,9 +12,8 @@ terraform {
     }
   }
 
-  # Backend configuration commented out for initial deployment
-  # backend "gcs" {
-  #   bucket = "your-terraform-state-bucket"
-  #   prefix = "youtube-webhook"
-  # }
+  backend "gcs" {
+    # Use the same bucket we create for function source, but different prefix for state
+    prefix = "terraform-state"
+  }
 }

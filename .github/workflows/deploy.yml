@@ -58,7 +58,13 @@ jobs:
         EOF
 
     - name: Terraform Init
-      run: terraform -chdir=terraform init
+      run: |
+        # Calculate bucket name same way as in main.tf
+        PROJECT_SANITIZED=$(echo "${{ secrets.GCP_PROJECT_ID }}" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]//g')
+        BUCKET_NAME="gcs-${PROJECT_SANITIZED}-youtube-webhook-source"
+        
+        terraform -chdir=terraform init \
+          -backend-config="bucket=${BUCKET_NAME}"
 
     - name: Terraform Plan
       run: terraform -chdir=terraform plan -out=tfplan
