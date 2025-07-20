@@ -2,490 +2,247 @@
 
 A serverless Google Cloud Function that processes YouTube PubSubHubbub webhook notifications and triggers GitHub Actions workflows when new videos are published.
 
-## 🎯 Purpose
+[![Test Coverage](https://img.shields.io/badge/coverage-87.8%25-brightgreen)](TESTING.md)
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](#deployment)
+[![Go](https://img.shields.io/badge/go-1.23-blue)](https://golang.org/)
+[![Terraform](https://img.shields.io/badge/terraform-1.12.2-blue)](https://terraform.io/)
 
-This service enables real-time website updates when new YouTube videos are published by:
-1. Receiving webhook notifications from YouTube
-2. Filtering for new video publications (not updates)
-3. Triggering GitHub Actions workflows via repository dispatch events
-4. Enabling automated content updates on your website
+## Table of Contents
 
-## 🏗️ Architecture
+- [🚀 Quick Start](#-quick-start)
+- [✨ Features](#-features)
+- [🔧 Setup](#-setup)
+- [🏗️ Development](#️-development)
+- [🚀 Deployment](#-deployment)
+- [📚 Documentation](#-documentation)
 
+## 🚀 Quick Start
+
+```bash
+# One-time setup
+git clone <repository-url>
+cd defreyssi.net-youtube-webhook
+make dev-setup
+
+# Configure secrets (required)
+cat > terraform/terraform.tfvars << EOF
+project_id    = "your-google-cloud-project-id"
+github_token  = "your-github-pat"
+repo_owner    = "your-github-username" 
+repo_name     = "target-repository-name"
+environment   = "dev"
+EOF
+
+# Start development
+make test
+make run-local
+```
+
+Visit `http://localhost:8080?hub.challenge=test&hub.mode=subscribe&hub.topic=test` to test your local function!
+
+## ✨ Features
+
+### 🎯 Core Functionality
+- **YouTube Integration**: Handles PubSubHubbub webhook notifications
+- **Smart Filtering**: Distinguishes new videos from updates using timestamp analysis
+- **GitHub Integration**: Triggers repository dispatch events with video metadata
+- **Real-time Updates**: Enables automated website updates when new videos are published
+
+### 🛡️ Production Ready
+- **87.8% test coverage** with comprehensive test suite
+- **Security hardened** with Gosec scanning and vulnerability detection
+- **CI/CD pipeline** with quality gates and automated deployment
+- **Infrastructure as Code** with Terraform for reliable deployments
+
+### 🏗️ Architecture
 ```
 YouTube → PubSubHubbub → Cloud Function → GitHub API → Actions Workflow → Website Update
 ```
 
-- **Language**: Go 1.21
-- **Platform**: Google Cloud Functions (Gen 2)
-- **Infrastructure**: Terraform (Infrastructure as Code)
-- **Testing**: Test-Driven Development with 90.2% coverage
-- **CI/CD**: GitHub Actions with automated deployment
+- **Language**: Go 1.23
+- **Platform**: Google Cloud Functions (Gen 2)  
+- **Infrastructure**: Terraform 1.12.2
+- **Deployment**: GitHub Actions with branch protection
 
-## 📁 Project Structure
+## 🔧 Setup
 
-```
-defreyssi.net-youtube-webhook/
-├── function/                 # Go Cloud Function source code
-│   ├── webhook.go           # Main webhook implementation
-│   ├── webhook_test.go      # Comprehensive test suite
-│   ├── go.mod               # Go module dependencies
-│   └── go.sum               # Dependency checksums
-├── terraform/               # Infrastructure as Code
-│   ├── main.tf             # Main Terraform configuration
-│   ├── variables.tf        # Input variables
-│   ├── outputs.tf          # Output values
-│   └── versions.tf         # Terraform and provider versions
-├── .github/                # GitHub Actions and configuration
-│   ├── workflows/          # CI/CD workflows
-│   │   ├── ci.yml         # Continuous integration
-│   │   ├── deploy.yml     # Production deployment
-│   │   ├── release.yml    # Release management
-│   │   └── dependabot-auto-merge.yml  # Dependency automation
-│   └── dependabot.yml     # Dependabot configuration
-├── Makefile                # Build automation and commands
-├── .gitignore              # Git ignore patterns
-├── LICENSE                 # MIT License
-└── README.md               # This documentation
-```
+### Prerequisites
 
-## 🚀 Features
+- **Go** (1.23+)
+- **Terraform** (1.12.2+)
+- **Google Cloud SDK**
+- **GitHub Personal Access Token**
 
-### Core Functionality
-- **YouTube Integration**: Handles PubSubHubbub webhook notifications
-- **Smart Filtering**: Distinguishes new videos from updates using timestamp analysis
-- **GitHub Integration**: Triggers repository dispatch events with video metadata
-- **CORS Support**: Handles preflight requests for web integrations
-- **Verification**: Responds to YouTube's subscription challenges
+### Basic Setup
 
-### Technical Features
-- **Comprehensive Testing**: 90.2% test coverage with mock GitHub server
-- **Error Handling**: Graceful handling of invalid XML, API failures, and missing configuration
-- **Environment Configuration**: Flexible configuration via environment variables
-- **Infrastructure as Code**: Complete Terraform setup for deployment
-- **Build Automation**: Comprehensive Makefile with 40+ targets
+<details>
+<summary>📖 Detailed Setup Instructions (click to expand)</summary>
 
-## 📋 Prerequisites
-
-- **Go**: Version 1.21 or higher
-- **Terraform**: For infrastructure deployment
-- **Google Cloud SDK**: For deployment and testing
-- **GitHub Personal Access Token**: For repository dispatch API
-
-## 🛠️ Development Setup
-
-### 1. Clone and Setup
-```bash
-git clone <repository-url>
-cd defreyssi.net-youtube-webhook
-make dev-setup
-```
-
-### 2. Configure Environment
-For local development, create a Terraform variables file (never commit this file):
+#### Manual Installation
 
 ```bash
-cat > terraform/terraform.tfvars << EOF
-project_id    = "your-google-cloud-project-id"
-github_token  = "your-github-personal-access-token"
-repo_owner    = "your-github-username"
-repo_name     = "target-repository-name"
-environment   = "dev"
-EOF
+# Install Go (example for Arch Linux)
+sudo pacman -S go
+
+# Install Terraform
+# See: https://developer.hashicorp.com/terraform/install
+
+# Install Google Cloud SDK
+# See: https://cloud.google.com/sdk/docs/install
 ```
 
-**Note:** Use the same GitHub PAT you stored in the `GH_WORKFLOW_TOKEN` repository secret.
+#### GitHub Setup
+1. Generate Personal Access Token with `repo` scope
+2. Configure repository secrets (see [Deployment](#deployment))
 
-**⚠️ Security Note:** The `terraform.tfvars` file contains sensitive credentials and is automatically excluded by `.gitignore`. Never commit credential files to version control.
+#### Google Cloud Setup
+1. Create or select a Google Cloud project
+2. Enable required APIs (automatically handled by Terraform)
+3. Create service account with appropriate permissions
 
-Required configuration:
-- `project_id`: Your Google Cloud project ID
-- `github_token`: GitHub personal access token with `repo` scope
-- `repo_owner`: GitHub repository owner
-- `repo_name`: Target repository name
+</details>
 
-### 3. Development Workflow
-```bash
-# Run tests
-make test
-
-# Check test coverage
-make test-coverage
-
-# Run local development server
-make run-local
-
-# Test local function
-make test-local
-```
-
-## 🧪 Testing
-
-The project follows Test-Driven Development (TDD) with comprehensive test coverage:
+### Environment Configuration
 
 ```bash
-# Run all tests
-make test
-
-# Run tests with coverage
-make test-coverage
-
-# Run tests with verbose output
-make test-verbose
-
-# Watch tests during development
-make test-watch
+# Required for local development and deployment
+export GITHUB_TOKEN="your-github-personal-access-token"
+export REPO_OWNER="your-github-username"
+export REPO_NAME="target-repository-name"
+export ENVIRONMENT="dev"
 ```
 
-### Test Coverage: 90.2% ✅
+## 🏗️ Development
 
-**Function-level breakdown:**
-- `YouTubeWebhook()`: 100%
-- `handleVerificationChallenge()`: 100%
-- `handleNotification()`: 87.5%
-- `triggerGitHubWorkflow()`: 85.7%
-- `isNewVideo()`: 92.9%
+### Common Commands
 
-### Test Scenarios Covered
-- ✅ YouTube verification challenges
-- ✅ CORS preflight requests
-- ✅ Valid XML notification processing
-- ✅ Invalid XML handling
-- ✅ Empty notification handling
-- ✅ Old video update filtering
-- ✅ GitHub API integration
-- ✅ GitHub API failure scenarios
-- ✅ Missing environment variables
-- ✅ New video detection logic
-- ✅ Performance benchmarks
+```bash
+# Development workflow
+make dev-setup        # Initial setup
+make test            # Run tests
+make test-coverage   # Coverage report
+make run-local       # Start local server
+
+# Code quality
+make lint            # Code formatting
+make vet            # Go vet checks
+make security-scan   # Security analysis
+
+# Build and deploy
+make build-linux     # Build for Cloud Functions
+make terraform-plan  # Plan infrastructure
+```
+
+See the [Contributing Guide](CONTRIBUTING.md) for detailed development workflow.
 
 ## 🚀 Deployment
 
-### Automated Deployment (Recommended)
+### Automatic Deployment
 
-The project uses GitHub Actions for automated CI/CD. Simply push to the `main` branch to trigger automatic deployment to production.
+The service automatically deploys to Google Cloud Functions when:
+- ✅ Changes pushed to `main` branch
+- ✅ All CI checks pass (tests, security, linting)
+- ✅ Infrastructure validated with Terraform
+- ✅ Branch protection requirements met
 
-#### Required GitHub Repository Secrets
+### Required GitHub Secrets
 
-Configure these secrets in your GitHub repository settings (`Settings → Secrets and variables → Actions`):
+Configure in your repository settings:
+
+**Secrets:**
+- `GCP_CREDENTIALS` - Google Cloud service account JSON
+- `GCP_PROJECT_ID` - Google Cloud project ID  
+- `GH_WORKFLOW_TOKEN` - GitHub PAT with `repo` scope
+- `GH_TARGET_REPO_NAME` - Target repository name
 
 **Note:** GitHub reserves the `GITHUB_` prefix for system secrets, so we use `GH_` prefix for custom secrets.
 
-| Secret Name | Description | Example |
-|-------------|-------------|---------|
-| `GCP_CREDENTIALS` | Google Cloud service account JSON key | `{"type": "service_account", ...}` |
-| `GCP_PROJECT_ID` | Your Google Cloud project ID | `my-project-123456` |
-| `GH_WORKFLOW_TOKEN` | GitHub Personal Access Token with `repo` scope | `ghp_xxxxxxxxxxxxxxxxxxxx` |
-| `GH_TARGET_REPO_NAME` | Repository name to trigger workflows | `defreyssi.net-v2` |
+<details>
+<summary>🔧 Manual Deployment Setup (click to expand)</summary>
 
-#### Setting up Google Cloud Service Account
+### Google Cloud Setup
 
-1. Create a service account in Google Cloud Console
-2. Grant the following roles:
-   - Cloud Functions Admin
-   - Storage Admin
-   - Service Account User
-   - Project IAM Admin (for function permissions)
-3. Download the JSON key file
-4. Copy the entire JSON content to the `GCP_CREDENTIALS` secret
+1. Create service account with required permissions
+2. Download service account JSON key
+3. Add to GitHub secrets as `GCP_CREDENTIALS`
+4. Configure other required secrets
 
-#### Deployment Process
+### Local Deployment Testing
 
 ```bash
-# Trigger deployment
-git push origin main
+# Test full deployment process
+make pre-deploy      # Run all pre-deployment checks
+make terraform-plan  # Preview infrastructure changes
 
-# Or manually trigger via GitHub Actions UI
-# Go to Actions → Deploy → Run workflow
+# Test with real environment
+make build-linux     # Build production binary
+make terraform-apply # Deploy infrastructure (with tfvars configured)
 ```
 
-### Manual Deployment (Development)
+</details>
 
-For local development and testing:
+## 📚 Documentation
 
+### Quick Links
+
+- **[Testing Guide](TESTING.md)** - Comprehensive testing documentation
+- **[Contributing Guide](CONTRIBUTING.md)** - Development workflow and standards
+- **[API Documentation](#api-endpoints)** - Webhook endpoints and payload formats
+
+### Project Structure
+
+```
+defreyssi.net-youtube-webhook/
+├── function/           # Go Cloud Function source code
+├── terraform/         # Infrastructure as Code  
+├── .github/workflows/ # CI/CD pipelines
+├── Makefile          # Build automation (40+ targets)
+└── scripts/          # Utility scripts
+```
+
+### API Endpoints
+
+<details>
+<summary>📡 Webhook API Details</summary>
+
+**GET /** - Verification Challenge
 ```bash
-# Run all pre-deployment checks
-make pre-deploy
-
-# Manual Terraform deployment
-make terraform-init
-make terraform-plan
-make terraform-apply
-
-# Manual function deployment
-make deploy-function
+curl "https://your-function-url?hub.challenge=test&hub.mode=subscribe&hub.topic=test"
 ```
 
-## 🔧 Configuration
+**POST /** - Video Notification  
+Accepts YouTube Atom feed XML and triggers GitHub repository dispatch events.
 
-### Environment Variables
-
-**Required for Production:**
-- `GITHUB_TOKEN`: GitHub personal access token
-- `REPO_OWNER`: GitHub repository owner (e.g., "samsoir")
-- `REPO_NAME`: Target repository name (e.g., "defreyssi.net-v2")
-
-**Optional:**
-- `ENVIRONMENT`: Environment identifier (default: "prod")
-- `GITHUB_API_BASE_URL`: Custom GitHub API URL (for testing)
-
-### Terraform Variables
-
-Key configuration in `terraform/terraform.tfvars`:
-- `project_id`: Google Cloud project ID
-- `github_token`: GitHub PAT (stored securely)
-- `region`: GCP region (default: "us-central1")
-- `function_memory`: Memory allocation (default: "128Mi")
-- `function_timeout`: Timeout in seconds (default: 30)
-
-## 🔗 API Endpoints
-
-The deployed function exposes these endpoints:
-
-### `GET /?hub.challenge=<challenge>`
-YouTube subscription verification endpoint.
-
-**Response**: Returns the challenge parameter for successful verification.
-
-### `POST /`
-YouTube webhook notification endpoint.
-
-**Request Body**: YouTube Atom feed XML
-**Response**: 
-- `200`: Successfully processed new video
-- `200`: "Video update ignored" for old video updates
-- `200`: "No video data" for empty notifications
-- `400`: Invalid XML format
-- `500`: GitHub API or configuration errors
-
-### `OPTIONS /`
-CORS preflight support for web integrations.
-
-## 📊 Monitoring
-
-### Local Testing
-```bash
-# View function logs
-make logs
-
-# Check function status
-make status
-
-# Run security scan
-make security-scan
-```
-
-### Production Monitoring
-- Google Cloud Function metrics and logs
-- GitHub Actions workflow triggers
-- Repository dispatch event tracking
-
-## 🔄 Workflow Integration
-
-When a new video is published, the webhook sends this payload to GitHub:
-
+**GitHub Repository Dispatch Event:**
 ```json
 {
   "event_type": "youtube-video-published",
   "client_payload": {
     "video_id": "dQw4w9WgXcQ",
-    "channel_id": "UCuAXFkgsw1L7xaCfnd5JJOw",
+    "channel_id": "UCuAXFkgsw1L7xaCfnd5JJOw", 
     "title": "Video Title",
-    "published": "2024-07-20T10:00:00Z",
-    "updated": "2024-07-20T10:01:00Z",
-    "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-    "environment": "prod"
+    "published": "2024-01-01T12:00:00Z",
+    "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
   }
 }
 ```
 
-Your GitHub Actions workflow can listen for this event:
+</details>
 
-```yaml
-on:
-  repository_dispatch:
-    types: [youtube-video-published]
+### Quality Assurance
 
-jobs:
-  update-website:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Process new video
-        run: |
-          echo "New video: ${{ github.event.client_payload.title }}"
-          echo "Video ID: ${{ github.event.client_payload.video_id }}"
-```
-
-## 🛡️ Security Considerations
-
-### Credential Management
-- **GitHub Secrets**: All production credentials stored in GitHub repository secrets
-- **Terraform Variables**: Created dynamically in CI/CD, never committed to repository
-- **Local Development**: `terraform.tfvars` excluded by `.gitignore`
-- **Service Account**: Minimal IAM permissions with least-privilege principle
-
-### Application Security
-- **Input validation and sanitization** for all webhook payloads
-- **HTTPS-only communication** for all external API calls
-- **No sensitive data in logs** or error messages
-- **Function isolation** with Google Cloud Functions security model
-- **Timeout controls** to prevent resource exhaustion
-
-### Infrastructure Security
-- **Google Cloud IAM** controls function permissions
-- **Terraform state** managed securely (recommend remote state for production)
-- **Network security** with Cloud Functions built-in protections
-
-## 🧰 Available Commands
-
-The Makefile provides 40+ commands for development:
-
-```bash
-# Development
-make setup              # Setup development environment
-make test              # Run tests
-make build             # Build function
-make run-local         # Start local server
-
-# Code Quality
-make fmt               # Format code
-make lint              # Run linter
-make vet               # Run go vet
-make check             # Run all quality checks
-
-# Deployment
-make terraform-init    # Initialize Terraform
-make terraform-plan    # Plan infrastructure
-make deploy-function   # Deploy to Google Cloud
-
-# Utilities
-make clean             # Clean build artifacts
-make deps-update       # Update dependencies
-make security-scan     # Run security scan
-```
-
-Run `make help` to see all available commands.
-
-## 🎯 New Video Detection Logic
-
-The service uses intelligent timestamp analysis to distinguish new videos from updates:
-
-**Considered "New Video" if:**
-1. Published within the last hour
-2. Time difference between `published` and `updated` is less than 15 minutes
-
-**Considered "Update" if:**
-1. Published more than 1 hour ago, OR
-2. Large gap (>15 min) between publish and update times
-
-This prevents unnecessary workflow triggers for video metadata updates.
-
-## ⚙️ GitHub Actions Workflows
-
-The project includes comprehensive CI/CD automation with four main workflows:
-
-### 🔄 Continuous Integration (`ci.yml`)
-
-**Triggers:** Push/PR to main or develop branches
-
-**Jobs:**
-- **Test** - Runs full test suite with 85% coverage enforcement
-- **Lint** - Code formatting, go vet, and golint checks
-- **Security** - Vulnerability scanning with Gosec and SARIF reports
-- **Terraform** - Validates and formats Terraform configuration
-- **Build** - Creates Linux binary for Cloud Functions deployment
-- **Integration Test** - Benchmarks and local function testing
-
-### 🚀 Production Deployment (`deploy.yml`)
-
-**Triggers:** Push to main branch or manual dispatch
-
-**Process:**
-1. Runs full test suite
-2. Builds function binary
-3. Creates Terraform variables from GitHub secrets
-4. Deploys infrastructure with Terraform
-5. Tests deployed function endpoint
-6. Reports deployment status
-
-### 📦 Release Management (`release.yml`)
-
-**Triggers:** Git tags (v*)
-
-**Features:**
-- Auto-generates changelog from git commits
-- Creates GitHub releases with deployment information
-- Includes technical details and rollback instructions
-
-### 🤖 Dependency Management
-
-**Dependabot Configuration:**
-- Weekly updates for Go modules, GitHub Actions, and Terraform
-- Auto-review assignment to repository owner
-- Conventional commit message formatting
-
-**Auto-merge Workflow:**
-- Automatically merges minor and patch dependency updates
-- Requires CI to pass before merging
-- Major updates require manual review
-
-### 🔧 GitHub Actions Setup
-
-1. **Configure Repository Secrets** (see deployment section below)
-2. **Enable Actions** in repository settings
-3. **Configure Branch Protection** (optional but recommended):
-   - Require PR reviews for main branch
-   - Require status checks to pass
-   - Require up-to-date branches before merging
-
-## 🤝 Contributing
-
-1. Follow Test-Driven Development (TDD)
-2. Maintain test coverage above 85%
-3. Run `make pre-commit` before committing
-4. Update documentation for new features
-5. Use conventional commit messages
-6. All PRs must pass CI workflows before merging
-7. Deployment happens automatically on merge to main
-
-## 📈 Metrics
-
-- **Test Coverage**: 90.2%
-- **Response Time**: <100ms typical
-- **Memory Usage**: 128Mi allocated
-- **Cold Start**: <1s with Go runtime
-- **Reliability**: 99.9% uptime target
-
-## 🔍 Troubleshooting
-
-### Common Issues
-
-**Function not receiving webhooks:**
-- Verify YouTube subscription is active
-- Check function URL is publicly accessible
-- Confirm CORS headers are set correctly
-
-**GitHub API errors:**
-- Verify token has `repo` scope
-- Check repository owner/name configuration
-- Ensure token hasn't expired
-
-**Test failures:**
-- Run `make deps-update` to update dependencies
-- Check Go version compatibility (1.21+)
-- Verify mock server setup in tests
-
-### Debug Commands
-```bash
-make logs              # View function logs
-make status           # Check project status
-make terraform-output # Show infrastructure outputs
-```
-
-## 📝 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+- **Branch Protection**: Main branch requires PR reviews and passing CI
+- **Security Scanning**: Automated vulnerability detection with Gosec and govulncheck  
+- **Test Coverage**: 87.8% coverage with comprehensive test suite
+- **Code Quality**: Automated linting, formatting, and vet checks
 
 ---
 
-**Built with ❤️ using Test-Driven Development and Infrastructure as Code**
+## Getting Help
+
+- **📖 Documentation**: Check [TESTING.md](TESTING.md) and [CONTRIBUTING.md](CONTRIBUTING.md)
+- **🐛 Issues**: [Create an issue](https://github.com/samsoir/youtube-webhook-handler/issues) 
+- **💡 Questions**: Include error messages and steps to reproduce
+- **📊 Monitoring**: Use `make logs` to view Cloud Function logs
+
+Built with ❤️ using [Go](https://golang.org/) and deployed to [Google Cloud Functions](https://cloud.google.com/functions).
