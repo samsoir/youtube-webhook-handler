@@ -51,9 +51,9 @@ jobs:
       run: |
         cat > terraform/terraform.tfvars << EOF
         project_id = "${{ secrets.GCP_PROJECT_ID }}"
-        github_token = "${{ secrets.GITHUB_TOKEN_WEBHOOK }}"
+        github_token = "${{ secrets.GH_WORKFLOW_TOKEN }}"
         repo_owner = "${{ github.repository_owner }}"
-        repo_name = "${{ secrets.TARGET_REPO_NAME }}"
+        repo_name = "${{ secrets.GH_TARGET_REPO_NAME }}"
         environment = "production"
         EOF
 

@@ -94,6 +94,8 @@ environment   = "dev"
 EOF
 ```
 
+**Note:** Use the same GitHub PAT you stored in the `GH_WORKFLOW_TOKEN` repository secret.
+
 **⚠️ Security Note:** The `terraform.tfvars` file contains sensitive credentials and is automatically excluded by `.gitignore`. Never commit credential files to version control.
 
 Required configuration:
@@ -167,12 +169,14 @@ The project uses GitHub Actions for automated CI/CD. Simply push to the `main` b
 
 Configure these secrets in your GitHub repository settings (`Settings → Secrets and variables → Actions`):
 
+**Note:** GitHub reserves the `GITHUB_` prefix for system secrets, so we use `GH_` prefix for custom secrets.
+
 | Secret Name | Description | Example |
 |-------------|-------------|---------|
 | `GCP_CREDENTIALS` | Google Cloud service account JSON key | `{"type": "service_account", ...}` |
 | `GCP_PROJECT_ID` | Your Google Cloud project ID | `my-project-123456` |
-| `GITHUB_TOKEN_WEBHOOK` | GitHub Personal Access Token with `repo` scope | `ghp_xxxxxxxxxxxxxxxxxxxx` |
-| `TARGET_REPO_NAME` | Repository name to trigger workflows | `defreyssi.net-v2` |
+| `GH_WORKFLOW_TOKEN` | GitHub Personal Access Token with `repo` scope | `ghp_xxxxxxxxxxxxxxxxxxxx` |
+| `GH_TARGET_REPO_NAME` | Repository name to trigger workflows | `defreyssi.net-v2` |
 
 #### Setting up Google Cloud Service Account
 
