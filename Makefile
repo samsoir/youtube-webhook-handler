@@ -67,10 +67,9 @@ fmt: ## Format Go code
 	@cd $(FUNCTION_DIR) && go fmt ./...
 	@echo "$(GREEN)✓ Code formatted$(NC)"
 
-lint: ## Run golint on the code
-	@echo "$(YELLOW)Running golint...$(NC)"
-	@cd $(FUNCTION_DIR) && command -v golint >/dev/null 2>&1 || go install golang.org/x/lint/golint@latest
-	@cd $(FUNCTION_DIR) && golint ./...
+lint: ## Run golangci-lint on the code
+	@echo "$(YELLOW)Running golangci-lint...$(NC)"
+	@cd $(FUNCTION_DIR) && go run github.com/golangci/golangci-lint/cmd/golangci-lint@latest run ./...
 
 vet: ## Run go vet
 	@echo "$(YELLOW)Running go vet...$(NC)"
@@ -96,12 +95,13 @@ build-linux: ## Build for Linux (Cloud Functions target)
 run-local: ## Run the function locally using Functions Framework
 	@echo "$(YELLOW)Starting local development server...$(NC)"
 	@echo "$(BLUE)Function will be available at: http://localhost:8080$(NC)"
-	@cd $(FUNCTION_DIR) && go run .
+	@go run ./cmd
 
 test-local: ## Test the local function with a sample request
 	@echo "$(YELLOW)Testing local function...$(NC)"
 	@echo "$(BLUE)Sending verification challenge...$(NC)"
-	@curl -X GET "http://localhost:8080?hub.challenge=test-challenge&hub.mode=subscribe&hub.topic=test" || echo "$(RED)❌ Local server not running? Try 'make run-local' first$(NC)"
+	@sleep 3
+	@curl -X GET "http://localhost:8080/YouTubeWebhook?hub.challenge=test-challenge&hub.mode=subscribe&hub.topic=test" || echo "$(RED)❌ Local server not running? Try 'make run-local' first$(NC)"
 
 ## Terraform Commands
 
