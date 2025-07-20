@@ -134,10 +134,9 @@ jobs:
       run: make security-scan
 
     - name: Run Gosec Security Scanner
-      run: |
-        cd function
-        go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest
-        gosec -no-fail -fmt sarif -out results.sarif ./...
+      uses: securecodewarrior/github-action-gosec@master
+      with:
+        args: '-no-fail -fmt sarif -out function/results.sarif ./function/...'
         
     - name: Upload SARIF file
       uses: github/codeql-action/upload-sarif@v3
