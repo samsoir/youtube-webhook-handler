@@ -24,6 +24,7 @@ provider "google-beta" {
 # Enable required APIs
 resource "google_project_service" "required_apis" {
   for_each = toset([
+    "cloudresourcemanager.googleapis.com",
     "cloudfunctions.googleapis.com",
     "cloudbuild.googleapis.com",
     "artifactregistry.googleapis.com",
