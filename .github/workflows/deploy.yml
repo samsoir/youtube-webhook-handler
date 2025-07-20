@@ -110,7 +110,8 @@ jobs:
       id: function-url
       run: |
         # Get the URL and clean any debug output from Terraform wrapper
-        URL=$(terraform -chdir=terraform output -raw webhook_url | head -n1 | cut -d':' -f1-3)
+        RAW_OUTPUT=$(terraform -chdir=terraform output -raw webhook_url)
+        URL=$(echo "$RAW_OUTPUT" | grep -o 'https://[^:]*' | head -n1)
         echo "Function URL: $URL"
         echo "url=$URL" >> $GITHUB_OUTPUT
 
