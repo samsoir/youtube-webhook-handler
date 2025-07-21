@@ -1,8 +1,6 @@
 module github.com/samsoir/youtube-webhook
 
-go 1.23.0
-
-toolchain go1.24.5
+go 1.23
 
 require (
 	github.com/GoogleCloudPlatform/functions-framework-go v1.8.0

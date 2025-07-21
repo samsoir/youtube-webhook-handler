@@ -1,8 +1,6 @@
 module github.com/samsoir/youtube-webhook
 
-go 1.23.0
-
-toolchain go1.24.5
+go 1.23
 
 replace github.com/samsoir/youtube-webhook/function => ./function
 
