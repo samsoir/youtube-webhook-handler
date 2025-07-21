@@ -144,12 +144,12 @@ func triggerGitHubWorkflow(entry *Entry) error {
 	dispatch := GitHubDispatch{
 		EventType: "youtube-video-published",
 		ClientPayload: map[string]interface{}{
-			"video_id":   entry.VideoID,
-			"channel_id": entry.ChannelID,
-			"title":      entry.Title,
-			"published":  entry.Published,
-			"updated":    entry.Updated,
-			"video_url":  fmt.Sprintf("https://www.youtube.com/watch?v=%s", entry.VideoID),
+			"video_id":    entry.VideoID,
+			"channel_id":  entry.ChannelID,
+			"title":       entry.Title,
+			"published":   entry.Published,
+			"updated":     entry.Updated,
+			"video_url":   fmt.Sprintf("https://www.youtube.com/watch?v=%s", entry.VideoID),
 			"environment": environment,
 		},
 	}
@@ -225,3 +225,4 @@ func isNewVideo(entry *Entry) bool {
 
 	return true
 }
+

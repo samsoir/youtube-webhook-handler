@@ -37,7 +37,7 @@ var (
     <updated>%s</updated>
   </entry>
 </feed>`, time.Now().Add(-2*time.Hour).Format(time.RFC3339), time.Now().Add(-2*time.Hour).Format(time.RFC3339))
-	
+
 	emptyXMLNotification = `<?xml version="1.0" encoding="UTF-8"?>
 <feed xmlns:yt="http://www.youtube.com/xml/schemas/2015" xmlns="http://www.w3.org/2005/Atom">
 </feed>`
@@ -62,7 +62,7 @@ func newMockGitHubServer(t *testing.T) *mockGitHubServer {
 	mock.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if mock.shouldFail {
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte("GitHub API Error"))
+			_, _ = w.Write([]byte("GitHub API Error"))
 			return
 		}
 
@@ -90,15 +90,10 @@ func (m *mockGitHubServer) close() {
 	m.server.Close()
 }
 
-func (m *mockGitHubServer) reset() {
-	m.receivedPayloads = make([]GitHubDispatch, 0)
-	m.shouldFail = false
-}
-
 // Test setup and teardown
 func setupTestEnvironment(t *testing.T) *mockGitHubServer {
 	mockGitHub := newMockGitHubServer(t)
-	
+
 	// Set required environment variables for testing
 	os.Setenv("GITHUB_TOKEN", "test-token")
 	os.Setenv("REPO_OWNER", "testowner")
@@ -312,9 +307,9 @@ func TestWebhook_MissingEnvironmentVariables(t *testing.T) {
 // Test: isNewVideo function should correctly identify new vs old videos
 func TestIsNewVideo(t *testing.T) {
 	tests := []struct {
-		name      string
-		entry     *Entry
-		expected  bool
+		name        string
+		entry       *Entry
+		expected    bool
 		description string
 	}{
 		{
@@ -323,7 +318,7 @@ func TestIsNewVideo(t *testing.T) {
 				Published: time.Now().Add(-10 * time.Minute).Format(time.RFC3339),
 				Updated:   time.Now().Add(-9 * time.Minute).Format(time.RFC3339),
 			},
-			expected: true,
+			expected:    true,
 			description: "Recent video with minimal time difference should be considered new",
 		},
 		{
@@ -332,7 +327,7 @@ func TestIsNewVideo(t *testing.T) {
 				Published: time.Now().Add(-2 * time.Hour).Format(time.RFC3339),
 				Updated:   time.Now().Add(-2 * time.Hour).Format(time.RFC3339),
 			},
-			expected: false,
+			expected:    false,
 			description: "Video published over 1 hour ago should be considered old",
 		},
 		{
@@ -341,7 +336,7 @@ func TestIsNewVideo(t *testing.T) {
 				Published: time.Now().Add(-30 * time.Minute).Format(time.RFC3339),
 				Updated:   time.Now().Format(time.RFC3339),
 			},
-			expected: false,
+			expected:    false,
 			description: "Video with large update-publish difference should be considered an update",
 		},
 		{
@@ -350,7 +345,7 @@ func TestIsNewVideo(t *testing.T) {
 				Published: "invalid-timestamp",
 				Updated:   "also-invalid",
 			},
-			expected: true,
+			expected:    true,
 			description: "Invalid timestamps should default to treating as new video",
 		},
 	}
@@ -418,7 +413,7 @@ func BenchmarkWebhook_ValidNotification(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		body.Seek(0, 0) // Reset reader
+		_, _ = body.Seek(0, 0) // Reset reader
 		req := httptest.NewRequest(http.MethodPost, "/webhook", body)
 		w := httptest.NewRecorder()
 
@@ -458,10 +453,10 @@ func TestWebhook_WriteErrors(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			req := httptest.NewRequest(tt.method, tt.url, strings.NewReader(tt.body))
 			req.Header.Set("Content-Type", "application/xml")
-			
+
 			// Use failing response writer
 			w := &failingResponseWriter{ResponseRecorder: httptest.NewRecorder()}
-			
+
 			// This should not panic even with write errors
 			assert.NotPanics(t, func() {
 				YouTubeWebhook(w, req)

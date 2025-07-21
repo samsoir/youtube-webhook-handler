@@ -36,6 +36,7 @@ vendor/
 
 # Go workspace file
 go.work
+go.work.sum
 
 # Go build cache
 .cache/
@@ -91,3 +92,7 @@ coverage.out
 
 # Function deployment archives
 function-source.zip
+
+# Function binaries
+function/webhook
+function/webhook-linux
