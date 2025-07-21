@@ -32,7 +32,6 @@ jobs:
         key: ${{ runner.os }}-go-test-${{ hashFiles('**/go.sum') }}
         restore-keys: |
           ${{ runner.os }}-go-test-
-          ${{ runner.os }}-go-
 
     - name: Download dependencies
       run: |
@@ -84,7 +83,6 @@ jobs:
         key: ${{ runner.os }}-go-lint-${{ hashFiles('**/go.sum') }}
         restore-keys: |
           ${{ runner.os }}-go-lint-
-          ${{ runner.os }}-go-
 
     - name: Download dependencies
       run: |
@@ -192,7 +190,6 @@ jobs:
         key: ${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
         restore-keys: |
           ${{ runner.os }}-go-build-
-          ${{ runner.os }}-go-
 
     - name: Download dependencies
       run: |
@@ -233,7 +230,6 @@ jobs:
         key: ${{ runner.os }}-go-integration-${{ hashFiles('**/go.sum') }}
         restore-keys: |
           ${{ runner.os }}-go-integration-
-          ${{ runner.os }}-go-
 
     - name: Download dependencies
       run: |
