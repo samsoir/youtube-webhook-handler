@@ -2,6 +2,13 @@
 
 Thank you for your interest in contributing to the YouTube Webhook Service! This guide will help you get started with development and contributions.
 
+## Architecture & Design
+
+For detailed information about system design and planned features:
+- **[SUBSCRIPTION_DESIGN.md](./SUBSCRIPTION_DESIGN.md)** - YouTube subscription management architecture
+- **[README.md](./README.md)** - Project overview and setup
+- **[TESTING.md](./TESTING.md)** - Testing strategy and guidelines
+
 ## Quick Start for Contributors
 
 ```bash
