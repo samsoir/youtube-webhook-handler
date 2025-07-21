@@ -254,7 +254,7 @@ jobs:
         sleep 5
         
         # Test verification challenge
-        curl -f "http://localhost:8080?hub.challenge=test-challenge&hub.mode=subscribe&hub.topic=test" || (kill $FUNC_PID && exit 1)
+        curl -f "http://localhost:8080/YouTubeWebhook?hub.challenge=test-challenge&hub.mode=subscribe&hub.topic=test" || (kill $FUNC_PID && exit 1)
         
         # Cleanup
         kill $FUNC_PID
