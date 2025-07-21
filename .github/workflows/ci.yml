@@ -243,6 +243,9 @@ jobs:
 
     - name: Test local function startup
       run: |
+        # Ensure dependencies are up to date
+        go mod tidy
+        
         # Start function in background
         make run-local &
         FUNC_PID=$!
