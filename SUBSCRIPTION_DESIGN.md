@@ -51,17 +51,22 @@ This document outlines the design for YouTube PubSubHubbub subscription manageme
 #### POST /subscribe
 Subscribe to a YouTube channel for real-time notifications.
 
-**Query Parameters:**
-- `channel_id` (required) - YouTube channel ID
+**Request:**
+- **Method**: `POST`
+- **Path**: `/subscribe`
+- **Query Parameters**: 
+  - `channel_id` (required) - YouTube channel ID (format: `UC` + 22 alphanumeric chars)
 
 **Request Flow:**
-1. Validate channel_id format
+1. Validate channel_id format (`^UC[a-zA-Z0-9_-]{22}$`)
 2. Check if already subscribed
-3. Make PubSubHubbub subscription request
-4. Store subscription state
-5. Return status
+3. Make PubSubHubbub subscription request to hub
+4. Store subscription state in Cloud Storage
+5. Return appropriate response
 
-**Response:**
+**Responses:**
+
+**Success (200 OK):**
 ```json
 {
   "status": "success",
@@ -71,25 +76,139 @@ Subscribe to a YouTube channel for real-time notifications.
 }
 ```
 
+**Already Subscribed (409 Conflict):**
+```json
+{
+  "status": "conflict",
+  "channel_id": "UCXuqSBlHAE6Xw-yeJA0Tunw",
+  "message": "Already subscribed to this channel",
+  "expires_at": "2025-01-22T10:30:00Z"
+}
+```
+
+**Invalid Channel ID (400 Bad Request):**
+```json
+{
+  "status": "error",
+  "channel_id": "invalid-id",
+  "message": "Invalid channel ID format. Must be UC followed by 22 alphanumeric characters"
+}
+```
+
+**Missing Parameter (400 Bad Request):**
+```json
+{
+  "status": "error",
+  "message": "channel_id parameter is required"
+}
+```
+
+**Hub Unreachable (502 Bad Gateway):**
+```json
+{
+  "status": "error",
+  "channel_id": "UCXuqSBlHAE6Xw-yeJA0Tunw",
+  "message": "PubSubHubbub hub unreachable"
+}
+```
+
+**Hub Error (5xx - Pass Through):**
+```json
+{
+  "status": "error",
+  "channel_id": "UCXuqSBlHAE6Xw-yeJA0Tunw",
+  "message": "PubSubHubbub hub error: 500 Internal Server Error"
+}
+```
+
+**Request Timeout (504 Gateway Timeout):**
+```json
+{
+  "status": "error",
+  "channel_id": "UCXuqSBlHAE6Xw-yeJA0Tunw",
+  "message": "Request to PubSubHubbub hub timed out"
+}
+```
+
+---
+
 #### DELETE /unsubscribe
 Unsubscribe from a YouTube channel.
 
-**Query Parameters:**
-- `channel_id` (required) - YouTube channel ID
+**Request:**
+- **Method**: `DELETE`
+- **Path**: `/unsubscribe`
+- **Query Parameters**: 
+  - `channel_id` (required) - YouTube channel ID
 
-**Response:**
+**Request Flow:**
+1. Validate channel_id format
+2. Check if subscription exists in state
+3. Make PubSubHubbub unsubscribe request to hub
+4. Remove subscription from state (only if hub call succeeds)
+5. Return appropriate response
+
+**Responses:**
+
+**Success (204 No Content):**
+- **Body**: Empty (no response body)
+- **Behavior**: Subscription removed from state
+
+**Not Found (404 Not Found):**
 ```json
 {
-  "status": "success", 
-  "channel_id": "UCXuqSBlHAE6Xw-yeJA0Tunw",
-  "message": "Unsubscribed successfully"
+  "status": "error",
+  "channel_id": "UCXuqSBlHAE6Xw-yeJA0Tunw", 
+  "message": "Subscription not found for this channel"
 }
 ```
+
+**Invalid Channel ID (400 Bad Request):**
+```json
+{
+  "status": "error",
+  "channel_id": "invalid-id",
+  "message": "Invalid channel ID format"
+}
+```
+
+**Missing Parameter (400 Bad Request):**
+```json
+{
+  "status": "error",
+  "message": "channel_id parameter is required"
+}
+```
+
+**Hub Failure (5xx):**
+```json
+{
+  "status": "error",
+  "channel_id": "UCXuqSBlHAE6Xw-yeJA0Tunw",
+  "message": "PubSubHubbub hub unreachable"
+}
+```
+- **Behavior**: Subscription NOT removed from state (preserve consistency)
+
+---
 
 #### GET /subscriptions
 List all current subscriptions and their status.
 
-**Response:**
+**Request:**
+- **Method**: `GET`
+- **Path**: `/subscriptions`
+- **Query Parameters**: None
+
+**Request Flow:**
+1. Load subscription state from Cloud Storage
+2. Calculate expiry status and days remaining
+3. Generate summary statistics
+4. Return subscription list with metadata
+
+**Responses:**
+
+**Success (200 OK):**
 ```json
 {
   "subscriptions": [
@@ -98,13 +217,94 @@ List all current subscriptions and their status.
       "status": "active",
       "expires_at": "2025-01-22T10:30:00Z",
       "days_until_expiry": 0.8
+    },
+    {
+      "channel_id": "UCBJycsmduvYEL83R_U4JriQ",
+      "status": "expired", 
+      "expires_at": "2025-01-20T10:30:00Z",
+      "days_until_expiry": -1.2
     }
   ],
-  "total": 1,
+  "total": 2,
   "active": 1,
+  "expired": 1
+}
+```
+
+**Empty State (200 OK):**
+```json
+{
+  "subscriptions": [],
+  "total": 0,
+  "active": 0,
   "expired": 0
 }
 ```
+
+**Storage Error (500 Internal Server Error):**
+```json
+{
+  "status": "error",
+  "message": "Unable to load subscription state from storage"
+}
+```
+
+---
+
+### API Design Decisions
+
+#### HTTP Status Code Mapping
+- **200 OK**: Successful operations with response data
+- **204 No Content**: Successful deletion (no response body)
+- **400 Bad Request**: Client errors (validation, missing parameters)
+- **404 Not Found**: Resource doesn't exist (subscription not found)
+- **409 Conflict**: Resource already exists (already subscribed)
+- **500 Internal Server Error**: Server/storage errors
+- **502 Bad Gateway**: External service (hub) unreachable
+- **503 Service Unavailable**: External service (hub) returns 503
+- **504 Gateway Timeout**: Timeout calling external service (hub)
+- **5xx Pass Through**: Forward hub error codes when appropriate
+
+#### Channel ID Validation
+- **Format**: `^UC[a-zA-Z0-9_-]{22}$`
+- **Length**: Exactly 24 characters
+- **Prefix**: Must start with "UC"
+- **Characters**: Alphanumeric, underscore, hyphen only
+
+#### Error Response Format
+```json
+{
+  "status": "error",
+  "channel_id": "UCXuqSBlHAE6Xw-yeJA0Tunw",  // Optional: included when relevant
+  "message": "Descriptive error message"
+}
+```
+
+#### Success Response Format
+```json
+{
+  "status": "success",
+  "channel_id": "UCXuqSBlHAE6Xw-yeJA0Tunw",
+  "message": "Operation description", 
+  "expires_at": "2025-01-22T10:30:00Z"  // ISO 8601 RFC3339 format
+}
+```
+
+#### State Consistency Rules
+1. **Subscribe**: Only store state after successful hub call
+2. **Unsubscribe**: Only remove state after successful hub call  
+3. **Network Failures**: Preserve existing state, return appropriate error
+4. **Hub Errors**: Don't modify state, pass through error information
+
+#### Timestamp Format
+- **Standard**: ISO 8601 RFC3339 format (`2025-01-22T10:30:00Z`)
+- **Timezone**: Always UTC (Z suffix)
+- **Precision**: Second-level precision
+
+#### Response Body Consistency
+- **Always JSON**: Even error responses return structured JSON
+- **Empty for 204**: No Content responses have completely empty body
+- **Descriptive Messages**: Error messages provide actionable information
 
 ### 3. PubSubHubbub Integration
 
