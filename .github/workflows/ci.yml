@@ -29,9 +29,9 @@ jobs:
         path: |
           ~/.cache/go-build
           ~/go/pkg/mod
-        key: ${{ runner.os }}-go-test-${{ hashFiles('**/go.sum') }}
+        key: ${{ runner.os }}-go-test-${{ github.run_id }}-${{ hashFiles('**/go.sum') }}
         restore-keys: |
-          ${{ runner.os }}-go-test-
+          ${{ runner.os }}-go-test-${{ github.run_id }}-
 
     - name: Download dependencies
       run: |
@@ -80,9 +80,9 @@ jobs:
         path: |
           ~/.cache/go-build
           ~/go/pkg/mod
-        key: ${{ runner.os }}-go-lint-${{ hashFiles('**/go.sum') }}
+        key: ${{ runner.os }}-go-lint-${{ github.run_id }}-${{ hashFiles('**/go.sum') }}
         restore-keys: |
-          ${{ runner.os }}-go-lint-
+          ${{ runner.os }}-go-lint-${{ github.run_id }}-
 
     - name: Download dependencies
       run: |
@@ -187,9 +187,9 @@ jobs:
         path: |
           ~/.cache/go-build
           ~/go/pkg/mod
-        key: ${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
+        key: ${{ runner.os }}-go-build-${{ github.run_id }}-${{ hashFiles('**/go.sum') }}
         restore-keys: |
-          ${{ runner.os }}-go-build-
+          ${{ runner.os }}-go-build-${{ github.run_id }}-
 
     - name: Download dependencies
       run: |
@@ -227,9 +227,9 @@ jobs:
         path: |
           ~/.cache/go-build
           ~/go/pkg/mod
-        key: ${{ runner.os }}-go-integration-${{ hashFiles('**/go.sum') }}
+        key: ${{ runner.os }}-go-integration-${{ github.run_id }}-${{ hashFiles('**/go.sum') }}
         restore-keys: |
-          ${{ runner.os }}-go-integration-
+          ${{ runner.os }}-go-integration-${{ github.run_id }}-
 
     - name: Download dependencies
       run: |
