@@ -171,7 +171,7 @@ func TestWebhook_CORSPreflight(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Equal(t, "*", w.Header().Get("Access-Control-Allow-Origin"))
-	assert.Equal(t, "GET, POST, OPTIONS", w.Header().Get("Access-Control-Allow-Methods"))
+	assert.Equal(t, "GET, POST, DELETE, OPTIONS", w.Header().Get("Access-Control-Allow-Methods"))
 }
 
 // Test: Webhook should reject unsupported HTTP methods

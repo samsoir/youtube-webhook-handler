@@ -2,14 +2,19 @@ package webhook
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
+	"regexp"
+	"strings"
 	"time"
 
+	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
 )
 
@@ -34,23 +39,88 @@ type GitHubDispatch struct {
 	ClientPayload map[string]interface{} `json:"client_payload"`
 }
 
+// Subscription represents a YouTube channel subscription
+type Subscription struct {
+	ChannelID       string    `json:"channel_id"`
+	ChannelName     string    `json:"channel_name,omitempty"`
+	TopicURL        string    `json:"topic_url"`
+	CallbackURL     string    `json:"callback_url"`
+	Status          string    `json:"status"`
+	LeaseSeconds    int       `json:"lease_seconds"`
+	SubscribedAt    time.Time `json:"subscribed_at"`
+	ExpiresAt       time.Time `json:"expires_at"`
+	LastRenewal     time.Time `json:"last_renewal"`
+	RenewalAttempts int       `json:"renewal_attempts"`
+	HubResponse     string    `json:"hub_response"`
+}
+
+// SubscriptionState represents the complete subscription state stored in Cloud Storage
+type SubscriptionState struct {
+	Subscriptions map[string]*Subscription `json:"subscriptions"`
+	Metadata      struct {
+		LastUpdated time.Time `json:"last_updated"`
+		Version     string    `json:"version"`
+	} `json:"metadata"`
+}
+
+// API Response types
+type APIResponse struct {
+	Status    string `json:"status"`
+	ChannelID string `json:"channel_id,omitempty"`
+	Message   string `json:"message,omitempty"`
+	ExpiresAt string `json:"expires_at,omitempty"`
+}
+
+type SubscriptionsListResponse struct {
+	Subscriptions []SubscriptionInfo `json:"subscriptions"`
+	Total         int                `json:"total"`
+	Active        int                `json:"active"`
+	Expired       int                `json:"expired"`
+}
+
+type SubscriptionInfo struct {
+	ChannelID        string  `json:"channel_id"`
+	Status           string  `json:"status"`
+	ExpiresAt        string  `json:"expires_at"`
+	DaysUntilExpiry  float64 `json:"days_until_expiry"`
+}
+
+// Channel ID validation regex
+var channelIDRegex = regexp.MustCompile(`^UC[a-zA-Z0-9_-]{22}$`)
+
+// Global test state (for testing only)
+var testSubscriptionState *SubscriptionState
+var testMode bool
+
 func init() {
 	functions.HTTP("YouTubeWebhook", YouTubeWebhook)
 }
 
-// YouTubeWebhook handles YouTube PubSubHubbub notifications
+// YouTubeWebhook handles YouTube PubSubHubbub notifications and subscription management
 func YouTubeWebhook(w http.ResponseWriter, r *http.Request) {
 	// Set CORS headers for all requests
 	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Content-Type", "application/json")
 
-	switch r.Method {
-	case http.MethodGet:
+	// Route based on path and method
+	path := strings.TrimPrefix(r.URL.Path, "/")
+	
+	switch {
+	case path == "subscribe" && r.Method == http.MethodPost:
+		handleSubscribe(w, r)
+	case path == "unsubscribe" && r.Method == http.MethodDelete:
+		handleUnsubscribe(w, r)
+	case path == "subscriptions" && r.Method == http.MethodGet:
+		handleGetSubscriptions(w, r)
+	case r.Method == http.MethodGet:
+		// Default GET behavior - YouTube verification challenge
 		handleVerificationChallenge(w, r)
-	case http.MethodPost:
+	case r.Method == http.MethodPost:
+		// Default POST behavior - YouTube notifications
 		handleNotification(w, r)
-	case http.MethodOptions:
+	case r.Method == http.MethodOptions:
 		// CORS preflight request
 		w.WriteHeader(http.StatusOK)
 	default:
@@ -224,5 +294,405 @@ func isNewVideo(entry *Entry) bool {
 	}
 
 	return true
+}
+
+// validateChannelID validates YouTube channel ID format
+func validateChannelID(channelID string) bool {
+	return channelIDRegex.MatchString(channelID)
+}
+
+// makePubSubHubbubRequest makes a subscription or unsubscription request to the PubSubHubbub hub
+func makePubSubHubbubRequest(channelID, mode string) error {
+	// Skip actual hub request in test mode
+	if testMode {
+		return nil
+	}
+	
+	hubURL := "https://pubsubhubbub.appspot.com/subscribe"
+	
+	// Get callback URL from environment or construct default
+	callbackURL := os.Getenv("FUNCTION_URL")
+	if callbackURL == "" {
+		return fmt.Errorf("FUNCTION_URL environment variable not set")
+	}
+	
+	// Construct topic URL for the YouTube channel
+	topicURL := fmt.Sprintf("https://www.youtube.com/feeds/videos.xml?channel_id=%s", channelID)
+	
+	// Prepare form data
+	formData := url.Values{
+		"hub.callback":     {callbackURL},
+		"hub.topic":        {topicURL},
+		"hub.mode":         {mode}, // "subscribe" or "unsubscribe"
+		"hub.verify":       {"async"},
+		"hub.lease_seconds": {"86400"}, // 24 hours
+	}
+	
+	// Create HTTP request
+	req, err := http.NewRequest("POST", hubURL, strings.NewReader(formData.Encode()))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %v", err)
+	}
+	
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("User-Agent", "YouTube-Webhook-Handler/1.0")
+	
+	// Send request with timeout
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("request failed: %v", err)
+	}
+	defer resp.Body.Close()
+	
+	// Check response status
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("hub returned status %d: %s", resp.StatusCode, string(bodyBytes))
+	}
+	
+	return nil
+}
+
+// loadSubscriptionState loads subscription state from Cloud Storage
+func loadSubscriptionState(ctx context.Context) (*SubscriptionState, error) {
+	// Use test state in test mode
+	if testMode {
+		if testSubscriptionState == nil {
+			testSubscriptionState = &SubscriptionState{
+				Subscriptions: make(map[string]*Subscription),
+				Metadata: struct {
+					LastUpdated time.Time `json:"last_updated"`
+					Version     string    `json:"version"`
+				}{
+					LastUpdated: time.Now(),
+					Version:     "1.0",
+				},
+			}
+		}
+		// Return a copy to avoid test interference
+		stateCopy := *testSubscriptionState
+		stateCopy.Subscriptions = make(map[string]*Subscription)
+		for k, v := range testSubscriptionState.Subscriptions {
+			subCopy := *v
+			stateCopy.Subscriptions[k] = &subCopy
+		}
+		return &stateCopy, nil
+	}
+	
+	bucketName := os.Getenv("SUBSCRIPTION_BUCKET")
+	if bucketName == "" {
+		return nil, fmt.Errorf("SUBSCRIPTION_BUCKET environment variable not set")
+	}
+	
+	client, err := storage.NewClient(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create storage client: %v", err)
+	}
+	defer client.Close()
+	
+	bucket := client.Bucket(bucketName)
+	obj := bucket.Object("subscriptions/state.json")
+	
+	reader, err := obj.NewReader(ctx)
+	if err != nil {
+		// If file doesn't exist, return empty state
+		if err == storage.ErrObjectNotExist {
+			return &SubscriptionState{
+				Subscriptions: make(map[string]*Subscription),
+				Metadata: struct {
+					LastUpdated time.Time `json:"last_updated"`
+					Version     string    `json:"version"`
+				}{
+					LastUpdated: time.Now(),
+					Version:     "1.0",
+				},
+			}, nil
+		}
+		return nil, fmt.Errorf("failed to read state file: %v", err)
+	}
+	defer reader.Close()
+	
+	data, err := io.ReadAll(reader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read state data: %v", err)
+	}
+	
+	var state SubscriptionState
+	if err := json.Unmarshal(data, &state); err != nil {
+		return nil, fmt.Errorf("failed to parse state JSON: %v", err)
+	}
+	
+	// Initialize subscriptions map if nil
+	if state.Subscriptions == nil {
+		state.Subscriptions = make(map[string]*Subscription)
+	}
+	
+	return &state, nil
+}
+
+// saveSubscriptionState saves subscription state to Cloud Storage
+func saveSubscriptionState(ctx context.Context, state *SubscriptionState) error {
+	// Use test state in test mode
+	if testMode {
+		if testSubscriptionState == nil {
+			testSubscriptionState = &SubscriptionState{
+				Subscriptions: make(map[string]*Subscription),
+			}
+		}
+		// Update the test state
+		state.Metadata.LastUpdated = time.Now()
+		if state.Metadata.Version == "" {
+			state.Metadata.Version = "1.0"
+		}
+		testSubscriptionState = state
+		return nil
+	}
+	
+	bucketName := os.Getenv("SUBSCRIPTION_BUCKET")
+	if bucketName == "" {
+		return fmt.Errorf("SUBSCRIPTION_BUCKET environment variable not set")
+	}
+	
+	client, err := storage.NewClient(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to create storage client: %v", err)
+	}
+	defer client.Close()
+	
+	// Update metadata
+	state.Metadata.LastUpdated = time.Now()
+	if state.Metadata.Version == "" {
+		state.Metadata.Version = "1.0"
+	}
+	
+	// Marshal to JSON
+	data, err := json.MarshalIndent(state, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal state: %v", err)
+	}
+	
+	bucket := client.Bucket(bucketName)
+	obj := bucket.Object("subscriptions/state.json")
+	
+	writer := obj.NewWriter(ctx)
+	writer.ContentType = "application/json"
+	
+	if _, err := writer.Write(data); err != nil {
+		writer.Close()
+		return fmt.Errorf("failed to write state data: %v", err)
+	}
+	
+	if err := writer.Close(); err != nil {
+		return fmt.Errorf("failed to close writer: %v", err)
+	}
+	
+	return nil
+}
+
+// writeJSONResponse writes a JSON response with the given status code
+func writeJSONResponse(w http.ResponseWriter, statusCode int, response interface{}) {
+	w.WriteHeader(statusCode)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		fmt.Printf("Error encoding JSON response: %v\n", err)
+	}
+}
+
+// writeErrorResponse writes a standardized error response
+func writeErrorResponse(w http.ResponseWriter, statusCode int, channelID, message string) {
+	response := APIResponse{
+		Status:  "error",
+		Message: message,
+	}
+	if channelID != "" {
+		response.ChannelID = channelID
+	}
+	writeJSONResponse(w, statusCode, response)
+}
+
+// handleSubscribe handles POST /subscribe requests
+func handleSubscribe(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	
+	// Get and validate channel_id parameter
+	channelID := r.URL.Query().Get("channel_id")
+	if channelID == "" {
+		writeErrorResponse(w, http.StatusBadRequest, "", "channel_id parameter is required")
+		return
+	}
+
+	// Validate channel ID format
+	if !validateChannelID(channelID) {
+		writeErrorResponse(w, http.StatusBadRequest, channelID, 
+			"Invalid channel ID format. Must be UC followed by 22 alphanumeric characters")
+		return
+	}
+
+	// Load current subscription state
+	state, err := loadSubscriptionState(ctx)
+	if err != nil {
+		writeErrorResponse(w, http.StatusInternalServerError, channelID, 
+			fmt.Sprintf("Failed to load subscription state: %v", err))
+		return
+	}
+	
+	// Check if already subscribed
+	if existing, exists := state.Subscriptions[channelID]; exists {
+		// Return conflict response with existing expiration
+		response := APIResponse{
+			Status:    "conflict",
+			ChannelID: channelID,
+			Message:   "Already subscribed to this channel",
+			ExpiresAt: existing.ExpiresAt.Format(time.RFC3339),
+		}
+		writeJSONResponse(w, http.StatusConflict, response)
+		return
+	}
+	
+	// Make PubSubHubbub subscription request
+	if err := makePubSubHubbubRequest(channelID, "subscribe"); err != nil {
+		writeErrorResponse(w, http.StatusBadGateway, channelID, 
+			fmt.Sprintf("PubSubHubbub subscription failed: %v", err))
+		return
+	}
+	
+	// Create subscription record
+	callbackURL := os.Getenv("FUNCTION_URL")
+	if callbackURL == "" && testMode {
+		callbackURL = "https://test-function-url"
+	}
+	topicURL := fmt.Sprintf("https://www.youtube.com/feeds/videos.xml?channel_id=%s", channelID)
+	now := time.Now()
+	expiresAt := now.Add(24 * time.Hour)
+	
+	subscription := &Subscription{
+		ChannelID:       channelID,
+		TopicURL:        topicURL,
+		CallbackURL:     callbackURL,
+		Status:          "active",
+		LeaseSeconds:    86400,
+		SubscribedAt:    now,
+		ExpiresAt:       expiresAt,
+		LastRenewal:     now,
+		RenewalAttempts: 0,
+		HubResponse:     "202 Accepted",
+	}
+	
+	// Store subscription state
+	state.Subscriptions[channelID] = subscription
+	if err := saveSubscriptionState(ctx, state); err != nil {
+		writeErrorResponse(w, http.StatusInternalServerError, channelID, 
+			fmt.Sprintf("Failed to save subscription state: %v", err))
+		return
+	}
+	
+	// Return success response
+	response := APIResponse{
+		Status:    "success",
+		ChannelID: channelID,
+		Message:   "Subscription initiated",
+		ExpiresAt: expiresAt.Format(time.RFC3339),
+	}
+	writeJSONResponse(w, http.StatusOK, response)
+}
+
+// handleUnsubscribe handles DELETE /unsubscribe requests
+func handleUnsubscribe(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	
+	// Get and validate channel_id parameter
+	channelID := r.URL.Query().Get("channel_id")
+	if channelID == "" {
+		writeErrorResponse(w, http.StatusBadRequest, "", "channel_id parameter is required")
+		return
+	}
+
+	// Validate channel ID format
+	if !validateChannelID(channelID) {
+		writeErrorResponse(w, http.StatusBadRequest, channelID, "Invalid channel ID format")
+		return
+	}
+
+	// Load current subscription state
+	state, err := loadSubscriptionState(ctx)
+	if err != nil {
+		writeErrorResponse(w, http.StatusInternalServerError, channelID, 
+			fmt.Sprintf("Failed to load subscription state: %v", err))
+		return
+	}
+	
+	// Check if subscription exists
+	if _, exists := state.Subscriptions[channelID]; !exists {
+		writeErrorResponse(w, http.StatusNotFound, channelID, 
+			"Subscription not found for this channel")
+		return
+	}
+	
+	// Make PubSubHubbub unsubscribe request
+	if err := makePubSubHubbubRequest(channelID, "unsubscribe"); err != nil {
+		writeErrorResponse(w, http.StatusBadGateway, channelID, 
+			fmt.Sprintf("PubSubHubbub unsubscribe failed: %v", err))
+		return
+	}
+	
+	// Remove from subscription state
+	delete(state.Subscriptions, channelID)
+	if err := saveSubscriptionState(ctx, state); err != nil {
+		writeErrorResponse(w, http.StatusInternalServerError, channelID, 
+			fmt.Sprintf("Failed to save subscription state: %v", err))
+		return
+	}
+	
+	// Return 204 No Content
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// handleGetSubscriptions handles GET /subscriptions requests
+func handleGetSubscriptions(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	
+	// Load subscription state from Cloud Storage
+	state, err := loadSubscriptionState(ctx)
+	if err != nil {
+		writeErrorResponse(w, http.StatusInternalServerError, "", 
+			fmt.Sprintf("Unable to load subscription state from storage: %v", err))
+		return
+	}
+	
+	// Calculate expiry status and statistics
+	now := time.Now()
+	subscriptions := make([]SubscriptionInfo, 0)
+	total := 0
+	active := 0
+	expired := 0
+	
+	for _, sub := range state.Subscriptions {
+		total++
+		
+		status := "active"
+		daysUntilExpiry := sub.ExpiresAt.Sub(now).Hours() / 24
+		
+		if sub.ExpiresAt.Before(now) {
+			status = "expired"
+			expired++
+		} else {
+			active++
+		}
+		
+		subscriptions = append(subscriptions, SubscriptionInfo{
+			ChannelID:       sub.ChannelID,
+			Status:          status,
+			ExpiresAt:       sub.ExpiresAt.Format(time.RFC3339),
+			DaysUntilExpiry: daysUntilExpiry,
+		})
+	}
+	
+	response := SubscriptionsListResponse{
+		Subscriptions: subscriptions,
+		Total:         total,
+		Active:        active,
+		Expired:       expired,
+	}
+	writeJSONResponse(w, http.StatusOK, response)
 }
 
