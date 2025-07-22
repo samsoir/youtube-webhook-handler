@@ -706,3 +706,35 @@ func handleGetSubscriptions(w http.ResponseWriter, r *http.Request) {
 	writeJSONResponse(w, http.StatusOK, response)
 }
 
+// Test helper functions for accessing private variables
+
+// GetStorageClient returns the current storage client
+func GetStorageClient() StorageInterface {
+	return storageClient
+}
+
+// SetStorageClient sets the storage client (for testing)
+func SetStorageClient(client StorageInterface) {
+	storageClient = client
+}
+
+// GetTestMode returns the current test mode state
+func GetTestMode() bool {
+	return testMode
+}
+
+// SetTestMode sets the test mode state (for testing)
+func SetTestMode(mode bool) {
+	testMode = mode
+}
+
+// GetTestSubscriptionState returns the current test subscription state
+func GetTestSubscriptionState() *SubscriptionState {
+	return testSubscriptionState
+}
+
+// SetTestSubscriptionState sets the test subscription state (for testing)
+func SetTestSubscriptionState(state *SubscriptionState) {
+	testSubscriptionState = state
+}
+
