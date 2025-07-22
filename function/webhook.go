@@ -88,7 +88,17 @@ type SubscriptionInfo struct {
 // Channel ID validation regex
 var channelIDRegex = regexp.MustCompile(`^UC[a-zA-Z0-9_-]{22}$`)
 
-// Global test state (for testing only)
+// StorageInterface defines the contract for subscription state storage operations
+type StorageInterface interface {
+	LoadSubscriptionState(ctx context.Context) (*SubscriptionState, error)
+	SaveSubscriptionState(ctx context.Context, state *SubscriptionState) error
+}
+
+// CloudStorageClient implements StorageInterface using Google Cloud Storage
+type CloudStorageClient struct{}
+
+// Global storage client and test state (for testing only)
+var storageClient StorageInterface = &CloudStorageClient{}
 var testSubscriptionState *SubscriptionState
 var testMode bool
 
@@ -354,8 +364,8 @@ func makePubSubHubbubRequest(channelID, mode string) error {
 	return nil
 }
 
-// loadSubscriptionState loads subscription state from Cloud Storage
-func loadSubscriptionState(ctx context.Context) (*SubscriptionState, error) {
+// LoadSubscriptionState loads subscription state from Cloud Storage
+func (c *CloudStorageClient) LoadSubscriptionState(ctx context.Context) (*SubscriptionState, error) {
 	// Use test state in test mode
 	if testMode {
 		if testSubscriptionState == nil {
@@ -431,8 +441,8 @@ func loadSubscriptionState(ctx context.Context) (*SubscriptionState, error) {
 	return &state, nil
 }
 
-// saveSubscriptionState saves subscription state to Cloud Storage
-func saveSubscriptionState(ctx context.Context, state *SubscriptionState) error {
+// SaveSubscriptionState saves subscription state to Cloud Storage
+func (c *CloudStorageClient) SaveSubscriptionState(ctx context.Context, state *SubscriptionState) error {
 	// Use test state in test mode
 	if testMode {
 		if testSubscriptionState == nil {
@@ -529,7 +539,7 @@ func handleSubscribe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Load current subscription state
-	state, err := loadSubscriptionState(ctx)
+	state, err := storageClient.LoadSubscriptionState(ctx)
 	if err != nil {
 		writeErrorResponse(w, http.StatusInternalServerError, channelID, 
 			fmt.Sprintf("Failed to load subscription state: %v", err))
@@ -580,7 +590,7 @@ func handleSubscribe(w http.ResponseWriter, r *http.Request) {
 	
 	// Store subscription state
 	state.Subscriptions[channelID] = subscription
-	if err := saveSubscriptionState(ctx, state); err != nil {
+	if err := storageClient.SaveSubscriptionState(ctx, state); err != nil {
 		writeErrorResponse(w, http.StatusInternalServerError, channelID, 
 			fmt.Sprintf("Failed to save subscription state: %v", err))
 		return
@@ -614,7 +624,7 @@ func handleUnsubscribe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Load current subscription state
-	state, err := loadSubscriptionState(ctx)
+	state, err := storageClient.LoadSubscriptionState(ctx)
 	if err != nil {
 		writeErrorResponse(w, http.StatusInternalServerError, channelID, 
 			fmt.Sprintf("Failed to load subscription state: %v", err))
@@ -637,7 +647,7 @@ func handleUnsubscribe(w http.ResponseWriter, r *http.Request) {
 	
 	// Remove from subscription state
 	delete(state.Subscriptions, channelID)
-	if err := saveSubscriptionState(ctx, state); err != nil {
+	if err := storageClient.SaveSubscriptionState(ctx, state); err != nil {
 		writeErrorResponse(w, http.StatusInternalServerError, channelID, 
 			fmt.Sprintf("Failed to save subscription state: %v", err))
 		return
@@ -652,7 +662,7 @@ func handleGetSubscriptions(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	
 	// Load subscription state from Cloud Storage
-	state, err := loadSubscriptionState(ctx)
+	state, err := storageClient.LoadSubscriptionState(ctx)
 	if err != nil {
 		writeErrorResponse(w, http.StatusInternalServerError, "", 
 			fmt.Sprintf("Unable to load subscription state from storage: %v", err))
