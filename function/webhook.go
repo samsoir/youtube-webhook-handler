@@ -1,7 +1,6 @@
 package webhook
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"encoding/xml"
@@ -155,155 +154,45 @@ func handleVerificationChallenge(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// handleNotification processes YouTube webhook notifications
+// handleNotification processes YouTube webhook notifications using the notification service
 func handleNotification(w http.ResponseWriter, r *http.Request) {
-	// Read and parse XML payload
-	body, err := io.ReadAll(r.Body)
+	notificationService := NewNotificationService()
+	
+	result, err := notificationService.ProcessNotification(r)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		if _, err := w.Write([]byte("Failed to read request body")); err != nil {
-			fmt.Printf("Error writing response: %v\n", err)
+		if result.Message == "Failed to read request body" || result.Message == "Invalid XML" {
+			w.WriteHeader(http.StatusBadRequest)
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
 		}
-		return
-	}
-
-	var feed AtomFeed
-	if err := xml.Unmarshal(body, &feed); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		if _, err := w.Write([]byte("Invalid XML")); err != nil {
-			fmt.Printf("Error writing response: %v\n", err)
-		}
-		return
-	}
-
-	// Handle empty notifications
-	if feed.Entry == nil {
-		w.WriteHeader(http.StatusOK)
-		if _, err := w.Write([]byte("No video data")); err != nil {
-			fmt.Printf("Error writing response: %v\n", err)
-		}
-		return
-	}
-
-	// Check if this is a new video or just an update
-	if !isNewVideo(feed.Entry) {
-		w.WriteHeader(http.StatusOK)
-		if _, err := w.Write([]byte("Video update ignored")); err != nil {
-			fmt.Printf("Error writing response: %v\n", err)
-		}
-		return
-	}
-
-	// Trigger GitHub workflow
-	if err := triggerGitHubWorkflow(feed.Entry); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		if _, err := w.Write([]byte("GitHub API error")); err != nil {
-			fmt.Printf("Error writing response: %v\n", err)
+		if _, writeErr := w.Write([]byte(result.Message)); writeErr != nil {
+			fmt.Printf("Error writing response: %v\n", writeErr)
 		}
 		return
 	}
 
 	w.WriteHeader(http.StatusOK)
-	if _, err := w.Write([]byte("Webhook processed successfully")); err != nil {
+	if _, err := w.Write([]byte(result.Message)); err != nil {
 		fmt.Printf("Error writing response: %v\n", err)
 	}
 }
 
-// triggerGitHubWorkflow sends a repository dispatch event to GitHub
+
+
+// Backward compatibility functions for existing tests
+
+// triggerGitHubWorkflow is a backward compatibility function that uses the new GitHubClient
 func triggerGitHubWorkflow(entry *Entry) error {
-	token := os.Getenv("GITHUB_TOKEN")
+	client := NewGitHubClient()
 	repoOwner := os.Getenv("REPO_OWNER")
 	repoName := os.Getenv("REPO_NAME")
-	environment := os.Getenv("ENVIRONMENT")
-
-	if token == "" || repoOwner == "" || repoName == "" {
-		return fmt.Errorf("missing required environment variables")
-	}
-
-	// Create dispatch payload
-	dispatch := GitHubDispatch{
-		EventType: "youtube-video-published",
-		ClientPayload: map[string]interface{}{
-			"video_id":    entry.VideoID,
-			"channel_id":  entry.ChannelID,
-			"title":       entry.Title,
-			"published":   entry.Published,
-			"updated":     entry.Updated,
-			"video_url":   fmt.Sprintf("https://www.youtube.com/watch?v=%s", entry.VideoID),
-			"environment": environment,
-		},
-	}
-
-	// Marshal to JSON
-	jsonData, err := json.Marshal(dispatch)
-	if err != nil {
-		return fmt.Errorf("failed to marshal JSON: %v", err)
-	}
-
-	// Create HTTP request - allow override for testing
-	baseURL := os.Getenv("GITHUB_API_BASE_URL")
-	if baseURL == "" {
-		baseURL = "https://api.github.com"
-	}
-	url := fmt.Sprintf("%s/repos/%s/%s/dispatches", baseURL, repoOwner, repoName)
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
-	if err != nil {
-		return fmt.Errorf("failed to create request: %v", err)
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", fmt.Sprintf("token %s", token))
-	req.Header.Set("Accept", "application/vnd.github.v3+json")
-
-	// Send request
-	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("failed to send request: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("GitHub API returned status %d", resp.StatusCode)
-	}
-
-	return nil
+	return client.TriggerWorkflow(repoOwner, repoName, entry)
 }
 
-// isNewVideo determines if this is a new video or just an update
+// isNewVideo is a backward compatibility function that uses the new VideoProcessor
 func isNewVideo(entry *Entry) bool {
-	// Parse timestamps
-	published, err := time.Parse(time.RFC3339, entry.Published)
-	if err != nil {
-		// If we can't parse the timestamp, assume it's new
-		return true
-	}
-
-	updated, err := time.Parse(time.RFC3339, entry.Updated)
-	if err != nil {
-		// If we can't parse the timestamp, assume it's new
-		return true
-	}
-
-	now := time.Now()
-
-	// Consider a video "new" if:
-	// 1. It was published within the last hour
-	// 2. The difference between published and updated time is small (less than 15 minutes)
-	timeSincePublished := now.Sub(published)
-	updatePublishDiff := updated.Sub(published)
-
-	// If published more than 1 hour ago, it's likely an old video update
-	if timeSincePublished > time.Hour {
-		return false
-	}
-
-	// If there's a large gap between publish and update, it's likely an update to an old video
-	if updatePublishDiff > 15*time.Minute {
-		return false
-	}
-
-	return true
+	processor := NewVideoProcessor()
+	return processor.IsNewVideo(entry)
 }
 
 // validateChannelID validates YouTube channel ID format
