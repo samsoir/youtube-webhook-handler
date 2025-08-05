@@ -217,6 +217,9 @@ func (s *OptimizedCloudStorageService) saveToStorage(ctx context.Context, state 
 }
 
 func (s *OptimizedCloudStorageService) loadTestModeState() *SubscriptionState {
+	testSubscriptionStateMutex.Lock()
+	defer testSubscriptionStateMutex.Unlock()
+	
 	if testSubscriptionState == nil {
 		testSubscriptionState = s.createEmptyState()
 	}
@@ -225,6 +228,9 @@ func (s *OptimizedCloudStorageService) loadTestModeState() *SubscriptionState {
 
 func (s *OptimizedCloudStorageService) saveTestModeState(state *SubscriptionState) error {
 	s.updateMetadata(state)
+	
+	testSubscriptionStateMutex.Lock()
+	defer testSubscriptionStateMutex.Unlock()
 	testSubscriptionState = state
 	return nil
 }

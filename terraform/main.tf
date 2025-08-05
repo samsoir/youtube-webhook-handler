@@ -78,6 +78,36 @@ resource "google_storage_bucket" "function_source" {
   depends_on = [google_project_service.required_apis]
 }
 
+# Storage bucket for subscription state
+resource "google_storage_bucket" "subscription_state" {
+  name     = "${local.bucket_name}-subscriptions"
+  location = var.region
+  project  = var.project_id
+
+  uniform_bucket_level_access = true
+
+  # Lifecycle management for backup files
+  lifecycle_rule {
+    condition {
+      age            = 90
+      matches_prefix = ["subscriptions/backups/"]
+    }
+    action {
+      type = "Delete"
+    }
+  }
+
+  versioning {
+    enabled = true
+  }
+
+  labels = merge(local.common_labels, {
+    purpose = "subscription-state"
+  })
+
+  depends_on = [google_project_service.required_apis]
+}
+
 # Archive the function source code
 data "archive_file" "function_source" {
   type        = "zip"
@@ -116,6 +146,15 @@ resource "google_project_iam_member" "function_sa_logging" {
   depends_on = [google_project_service.required_apis]
 }
 
+# Grant function service account access to subscription state bucket
+resource "google_storage_bucket_iam_member" "function_sa_subscription_bucket" {
+  bucket = google_storage_bucket.subscription_state.name
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${google_service_account.function_sa.email}"
+
+  depends_on = [google_storage_bucket.subscription_state]
+}
+
 # Cloud Function (Gen 2)
 resource "google_cloudfunctions2_function" "youtube_webhook" {
   name     = local.function_name
@@ -149,10 +188,14 @@ resource "google_cloudfunctions2_function" "youtube_webhook" {
     service_account_email = google_service_account.function_sa.email
 
     environment_variables = {
-      GITHUB_TOKEN = var.github_token
-      REPO_OWNER   = var.repo_owner
-      REPO_NAME    = var.repo_name
-      ENVIRONMENT  = var.environment
+      GITHUB_TOKEN               = var.github_token
+      REPO_OWNER                 = var.repo_owner
+      REPO_NAME                  = var.repo_name
+      ENVIRONMENT                = var.environment
+      SUBSCRIPTION_BUCKET        = google_storage_bucket.subscription_state.name
+      RENEWAL_THRESHOLD_HOURS    = tostring(var.renewal_threshold_hours)
+      MAX_RENEWAL_ATTEMPTS       = tostring(var.max_renewal_attempts)
+      SUBSCRIPTION_LEASE_SECONDS = tostring(var.subscription_lease_seconds)
     }
 
     # Security settings

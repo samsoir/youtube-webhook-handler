@@ -72,3 +72,35 @@ variable "labels" {
     managed-by = "terraform"
   }
 }
+
+# Scheduler configuration
+variable "renewal_schedule" {
+  description = "Cron schedule for subscription renewal (every 6 hours by default)"
+  type        = string
+  default     = "0 */6 * * *"
+}
+
+variable "renewal_timezone" {
+  description = "Timezone for the renewal schedule"
+  type        = string
+  default     = "UTC"
+}
+
+# Renewal configuration environment variables
+variable "renewal_threshold_hours" {
+  description = "Hours before expiry to trigger renewal"
+  type        = number
+  default     = 12
+}
+
+variable "max_renewal_attempts" {
+  description = "Maximum number of renewal attempts before giving up"
+  type        = number
+  default     = 3
+}
+
+variable "subscription_lease_seconds" {
+  description = "Subscription lease duration in seconds"
+  type        = number
+  default     = 86400
+}

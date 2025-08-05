@@ -11,6 +11,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"cloud.google.com/go/storage"
@@ -84,6 +85,24 @@ type SubscriptionInfo struct {
 	DaysUntilExpiry  float64 `json:"days_until_expiry"`
 }
 
+// Renewal Response types
+type RenewalSummaryResponse struct {
+	Status             string          `json:"status"`
+	TotalChecked       int             `json:"total_checked"`
+	RenewalsCandidates int             `json:"renewals_candidates"`
+	RenewalsSucceeded  int             `json:"renewals_succeeded"`
+	RenewalsFailed     int             `json:"renewals_failed"`
+	Results            []RenewalResult `json:"results"`
+}
+
+type RenewalResult struct {
+	ChannelID     string `json:"channel_id"`
+	Success       bool   `json:"success"`
+	Message       string `json:"message"`
+	NewExpiryTime string `json:"new_expiry_time,omitempty"`
+	AttemptCount  int    `json:"attempt_count"`
+}
+
 // Channel ID validation regex
 var channelIDRegex = regexp.MustCompile(`^UC[a-zA-Z0-9_-]{22}$`)
 
@@ -99,6 +118,7 @@ type CloudStorageClient struct{}
 // Global storage client and test state (for testing only)
 var storageClient StorageInterface = &CloudStorageClient{}
 var testSubscriptionState *SubscriptionState
+var testSubscriptionStateMutex sync.RWMutex
 var testMode bool
 
 func init() {
@@ -123,6 +143,8 @@ func YouTubeWebhook(w http.ResponseWriter, r *http.Request) {
 		handleUnsubscribe(w, r)
 	case path == "subscriptions" && r.Method == http.MethodGet:
 		handleGetSubscriptions(w, r)
+	case path == "renew" && r.Method == http.MethodPost:
+		handleRenewSubscriptions(w, r)
 	case r.Method == http.MethodGet:
 		// Default GET behavior - YouTube verification challenge
 		handleVerificationChallenge(w, r)
@@ -593,6 +615,150 @@ func handleGetSubscriptions(w http.ResponseWriter, r *http.Request) {
 		Expired:       expired,
 	}
 	writeJSONResponse(w, http.StatusOK, response)
+}
+
+// handleRenewSubscriptions handles POST /renew requests from Cloud Scheduler
+func handleRenewSubscriptions(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	
+	// Load current subscription state
+	state, err := storageClient.LoadSubscriptionState(ctx)
+	if err != nil {
+		writeErrorResponse(w, http.StatusInternalServerError, "", 
+			fmt.Sprintf("Failed to load subscription state: %v", err))
+		return
+	}
+	
+	// Find subscriptions that need renewal
+	renewalThreshold := getRenewalThreshold()
+	now := time.Now()
+	
+	var renewalResults []RenewalResult
+	var successCount, failureCount int
+	
+	for channelID, subscription := range state.Subscriptions {
+		timeUntilExpiry := subscription.ExpiresAt.Sub(now)
+		
+		// Check if subscription needs renewal
+		if timeUntilExpiry <= renewalThreshold {
+			result := renewSubscription(ctx, channelID, subscription, state)
+			renewalResults = append(renewalResults, result)
+			
+			if result.Success {
+				successCount++
+			} else {
+				failureCount++
+				// Increment failure count for monitoring
+				subscription.RenewalAttempts++
+			}
+		}
+	}
+	
+	// Save updated state if there were any changes
+	if len(renewalResults) > 0 {
+		if err := storageClient.SaveSubscriptionState(ctx, state); err != nil {
+			writeErrorResponse(w, http.StatusInternalServerError, "", 
+				fmt.Sprintf("Failed to save subscription state: %v", err))
+			return
+		}
+	}
+	
+	// Return renewal summary
+	response := RenewalSummaryResponse{
+		Status:           "success",
+		TotalChecked:     len(state.Subscriptions),
+		RenewalsCandidates: len(renewalResults),
+		RenewalsSucceeded: successCount,
+		RenewalsFailed:   failureCount,
+		Results:          renewalResults,
+	}
+	
+	writeJSONResponse(w, http.StatusOK, response)
+}
+
+// renewSubscription attempts to renew a single subscription
+func renewSubscription(ctx context.Context, channelID string, subscription *Subscription, state *SubscriptionState) RenewalResult {
+	maxAttempts := getMaxRenewalAttempts()
+	
+	// Check if we've exceeded max attempts
+	if subscription.RenewalAttempts >= maxAttempts {
+		return RenewalResult{
+			ChannelID: channelID,
+			Success:   false,
+			Message:   fmt.Sprintf("Max renewal attempts (%d) exceeded", maxAttempts),
+			AttemptCount: subscription.RenewalAttempts,
+		}
+	}
+	
+	// Attempt to renew the subscription
+	err := makePubSubHubbubRequest(channelID, "subscribe")
+	if err != nil {
+		return RenewalResult{
+			ChannelID: channelID,
+			Success:   false,
+			Message:   fmt.Sprintf("PubSubHubbub renewal failed: %v", err),
+			AttemptCount: subscription.RenewalAttempts + 1,
+		}
+	}
+	
+	// Update subscription with new expiry time
+	now := time.Now()
+	leaseSeconds := getLeaseSeconds()
+	subscription.ExpiresAt = now.Add(time.Duration(leaseSeconds) * time.Second)
+	subscription.LastRenewal = now
+	subscription.RenewalAttempts = 0 // Reset on successful renewal
+	subscription.HubResponse = "202 Accepted (Renewed)"
+	
+	return RenewalResult{
+		ChannelID: channelID,
+		Success:   true,
+		Message:   "Subscription renewed successfully",
+		NewExpiryTime: subscription.ExpiresAt.Format(time.RFC3339),
+		AttemptCount: 0,
+	}
+}
+
+// Configuration helper functions
+
+// getRenewalThreshold returns the time threshold for renewal
+func getRenewalThreshold() time.Duration {
+	thresholdHours := os.Getenv("RENEWAL_THRESHOLD_HOURS")
+	if thresholdHours == "" {
+		return 12 * time.Hour // Default: 12 hours
+	}
+	
+	if hours, err := time.ParseDuration(thresholdHours + "h"); err == nil {
+		return hours
+	}
+	return 12 * time.Hour
+}
+
+// getMaxRenewalAttempts returns the maximum number of renewal attempts
+func getMaxRenewalAttempts() int {
+	maxAttemptsStr := os.Getenv("MAX_RENEWAL_ATTEMPTS")
+	if maxAttemptsStr == "" {
+		return 3 // Default: 3 attempts
+	}
+	
+	var attempts int
+	if _, err := fmt.Sscanf(maxAttemptsStr, "%d", &attempts); err == nil && attempts > 0 {
+		return attempts
+	}
+	return 3
+}
+
+// getLeaseSeconds returns the lease duration in seconds
+func getLeaseSeconds() int {
+	leaseSecondsStr := os.Getenv("SUBSCRIPTION_LEASE_SECONDS")
+	if leaseSecondsStr == "" {
+		return 86400 // Default: 24 hours
+	}
+	
+	var seconds int
+	if _, err := fmt.Sscanf(leaseSecondsStr, "%d", &seconds); err == nil && seconds > 0 {
+		return seconds
+	}
+	return 86400
 }
 
 // Test helper functions for accessing private variables

@@ -45,30 +45,14 @@ func TestTriggerGitHubWorkflow_ErrorPaths(t *testing.T) {
 	})
 	
 	t.Run("http_client_timeout", func(t *testing.T) {
-		// Create a server that will cause timeout
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			time.Sleep(35 * time.Second) // Longer than 30s timeout
-		}))
-		defer server.Close()
+		// Create a GitHub client with a very short timeout to test timeout behavior
+		client := &GitHubClient{
+			Token:   "test-token",
+			BaseURL: "http://10.255.255.1", // Non-routable IP to cause immediate timeout
+			Client:  &http.Client{Timeout: 100 * time.Millisecond}, // Very short timeout
+		}
 		
-		originalToken := os.Getenv("GITHUB_TOKEN")
-		originalOwner := os.Getenv("REPO_OWNER")
-		originalName := os.Getenv("REPO_NAME")
-		originalBaseURL := os.Getenv("GITHUB_API_BASE_URL")
-		
-		os.Setenv("GITHUB_TOKEN", "test-token")
-		os.Setenv("REPO_OWNER", "test-owner")
-		os.Setenv("REPO_NAME", "test-repo")
-		os.Setenv("GITHUB_API_BASE_URL", server.URL)
-		
-		defer func() {
-			setEnvOrUnset("GITHUB_TOKEN", originalToken)
-			setEnvOrUnset("REPO_OWNER", originalOwner)
-			setEnvOrUnset("REPO_NAME", originalName)
-			setEnvOrUnset("GITHUB_API_BASE_URL", originalBaseURL)
-		}()
-		
-		err := triggerGitHubWorkflow(entry)
+		err := client.TriggerWorkflow("test-owner", "test-repo", entry)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to send request")
 	})
