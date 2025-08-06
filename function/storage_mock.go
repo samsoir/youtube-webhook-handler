@@ -3,13 +3,12 @@ package webhook
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"sync"
 	"time"
 )
 
-// MockStorageClient implements StorageClient for testing.
-type MockStorageClient struct {
+// RefactoredMockStorageClient implements StorageClient for testing.
+type RefactoredMockStorageClient struct {
 	mu    sync.RWMutex
 	state *SubscriptionState
 	
@@ -21,21 +20,22 @@ type MockStorageClient struct {
 	LastSavedState *SubscriptionState
 }
 
-// NewMockStorageClient creates a new mock storage client.
-func NewMockStorageClient() *MockStorageClient {
-	return &MockStorageClient{
-		state: &SubscriptionState{
-			Subscriptions: make(map[string]*Subscription),
-			Metadata: &Metadata{
-				LastUpdated: time.Now(),
-				Version:     "1.0",
-			},
-		},
+// NewRefactoredMockStorageClient creates a new mock storage client.
+func NewRefactoredMockStorageClient() *RefactoredMockStorageClient {
+	return &RefactoredMockStorageClient{
+		state: func() *SubscriptionState {
+			state := &SubscriptionState{
+				Subscriptions: make(map[string]*Subscription),
+			}
+			state.Metadata.LastUpdated = time.Now()
+			state.Metadata.Version = "1.0"
+			return state
+		}(),
 	}
 }
 
 // LoadSubscriptionState loads the subscription state from memory.
-func (m *MockStorageClient) LoadSubscriptionState(ctx context.Context) (*SubscriptionState, error) {
+func (m *RefactoredMockStorageClient) LoadSubscriptionState(ctx context.Context) (*SubscriptionState, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	
@@ -46,13 +46,12 @@ func (m *MockStorageClient) LoadSubscriptionState(ctx context.Context) (*Subscri
 	}
 	
 	if m.state == nil {
-		return &SubscriptionState{
+		state := &SubscriptionState{
 			Subscriptions: make(map[string]*Subscription),
-			Metadata: &Metadata{
-				LastUpdated: time.Now(),
-				Version:     "1.0",
-			},
-		}, nil
+		}
+		state.Metadata.LastUpdated = time.Now()
+		state.Metadata.Version = "1.0"
+		return state, nil
 	}
 	
 	// Deep copy the state to prevent modifications
@@ -60,7 +59,7 @@ func (m *MockStorageClient) LoadSubscriptionState(ctx context.Context) (*Subscri
 }
 
 // SaveSubscriptionState saves the subscription state to memory.
-func (m *MockStorageClient) SaveSubscriptionState(ctx context.Context, state *SubscriptionState) error {
+func (m *RefactoredMockStorageClient) SaveSubscriptionState(ctx context.Context, state *SubscriptionState) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	
@@ -70,10 +69,7 @@ func (m *MockStorageClient) SaveSubscriptionState(ctx context.Context, state *Su
 		return m.SaveError
 	}
 	
-	// Update metadata
-	if state.Metadata == nil {
-		state.Metadata = &Metadata{}
-	}
+	// Update metadata  
 	state.Metadata.LastUpdated = time.Now()
 	state.Metadata.Version = "1.0"
 	
@@ -85,36 +81,37 @@ func (m *MockStorageClient) SaveSubscriptionState(ctx context.Context, state *Su
 }
 
 // Close is a no-op for the mock client.
-func (m *MockStorageClient) Close() error {
+func (m *RefactoredMockStorageClient) Close() error {
 	return nil
 }
 
 // SetState sets the internal state for testing.
-func (m *MockStorageClient) SetState(state *SubscriptionState) {
+func (m *RefactoredMockStorageClient) SetState(state *SubscriptionState) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.state = m.deepCopyState(state)
 }
 
 // GetState returns the current internal state for testing.
-func (m *MockStorageClient) GetState() *SubscriptionState {
+func (m *RefactoredMockStorageClient) GetState() *SubscriptionState {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return m.deepCopyState(m.state)
 }
 
 // Reset resets the mock to initial state.
-func (m *MockStorageClient) Reset() {
+func (m *RefactoredMockStorageClient) Reset() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	
-	m.state = &SubscriptionState{
-		Subscriptions: make(map[string]*Subscription),
-		Metadata: &Metadata{
-			LastUpdated: time.Now(),
-			Version:     "1.0",
-		},
-	}
+	m.state = func() *SubscriptionState {
+		state := &SubscriptionState{
+			Subscriptions: make(map[string]*Subscription),
+		}
+		state.Metadata.LastUpdated = time.Now()
+		state.Metadata.Version = "1.0"
+		return state
+	}()
 	m.LoadError = nil
 	m.SaveError = nil
 	m.LoadCallCount = 0
@@ -123,7 +120,7 @@ func (m *MockStorageClient) Reset() {
 }
 
 // deepCopyState creates a deep copy of the subscription state.
-func (m *MockStorageClient) deepCopyState(state *SubscriptionState) *SubscriptionState {
+func (m *RefactoredMockStorageClient) deepCopyState(state *SubscriptionState) *SubscriptionState {
 	if state == nil {
 		return nil
 	}

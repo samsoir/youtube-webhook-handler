@@ -31,6 +31,11 @@ func NewGitHubClient() *GitHubClient {
 	}
 }
 
+// IsConfigured returns whether the GitHub client is configured with a token.
+func (gc *GitHubClient) IsConfigured() bool {
+	return gc.Token != ""
+}
+
 // TriggerWorkflow sends a repository dispatch event to trigger a GitHub workflow
 func (gc *GitHubClient) TriggerWorkflow(repoOwner, repoName string, entry *Entry) error {
 	if gc.Token == "" || repoOwner == "" || repoName == "" {
@@ -89,7 +94,3 @@ func (gc *GitHubClient) sendDispatch(repoOwner, repoName string, dispatch GitHub
 	return nil
 }
 
-// IsConfigured checks if the GitHub client has the necessary configuration
-func (gc *GitHubClient) IsConfigured() bool {
-	return gc.Token != ""
-}

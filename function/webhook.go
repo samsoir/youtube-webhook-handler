@@ -127,6 +127,13 @@ func init() {
 
 // YouTubeWebhook handles YouTube PubSubHubbub notifications and subscription management
 func YouTubeWebhook(w http.ResponseWriter, r *http.Request) {
+	// Check if refactored router should be used
+	if useRefactoredRouter() {
+		YouTubeWebhookRefactored(w, r)
+		return
+	}
+
+	// Original router implementation
 	// Set CORS headers for all requests
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
@@ -719,6 +726,13 @@ func renewSubscription(ctx context.Context, channelID string, subscription *Subs
 }
 
 // Configuration helper functions
+
+// useRefactoredRouter determines whether to use the refactored router with dependency injection
+func useRefactoredRouter() bool {
+	// Check environment variable to enable refactored router
+	useRefactored := os.Getenv("USE_REFACTORED_ROUTER")
+	return useRefactored == "true" || useRefactored == "1"
+}
 
 // getRenewalThreshold returns the time threshold for renewal
 func getRenewalThreshold() time.Duration {
