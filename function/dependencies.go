@@ -4,7 +4,7 @@ import "sync"
 
 // Dependencies holds all the external dependencies for the webhook service.
 type Dependencies struct {
-	StorageClient *RefactoredMockStorageClient  // For proof-of-concept, use mock directly
+	StorageClient StorageService       // Use proper storage interface
 	PubSubClient  PubSubClient
 	GitHubClient  GitHubClientInterface
 }
@@ -42,20 +42,18 @@ func SetDependencies(deps *Dependencies) {
 
 // CreateProductionDependencies creates dependencies for production use.
 func CreateProductionDependencies() *Dependencies {
-	// For proof-of-concept, use mocks in production too
-	// In real implementation, this would use actual services
 	return &Dependencies{
-		StorageClient: NewRefactoredMockStorageClient(),
-		PubSubClient:  NewHTTPPubSubClient(),
-		GitHubClient:  NewGitHubClient(), // Use real GitHub client in production
+		StorageClient: NewCloudStorageService(), // Use real Cloud Storage with caching
+		PubSubClient:  NewHTTPPubSubClient(),    // Use real HTTP PubSub client
+		GitHubClient:  NewGitHubClient(),        // Use real GitHub client
 	}
 }
 
 // CreateTestDependencies creates dependencies for testing.
 func CreateTestDependencies() *Dependencies {
 	return &Dependencies{
-		StorageClient: NewRefactoredMockStorageClient(),
-		PubSubClient:  NewMockPubSubClient(),
-		GitHubClient:  NewMockGitHubClient(),
+		StorageClient: NewMockStorageClient(),  // Mock for testing only
+		PubSubClient:  NewMockPubSubClient(),   // Mock for testing only  
+		GitHubClient:  NewMockGitHubClient(),   // Mock for testing only
 	}
 }

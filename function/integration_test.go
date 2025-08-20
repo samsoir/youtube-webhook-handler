@@ -11,15 +11,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestRefactoredHandlers_EndToEnd tests the complete refactored flow
-func TestRefactoredHandlers_EndToEnd(t *testing.T) {
+// TestHandlers_EndToEnd tests the complete refactored flow
+func TestHandlers_EndToEnd(t *testing.T) {
 	// Create test dependencies
 	deps := CreateTestDependencies()
 	channelID := "UCXuqSBlHAE6Xw-yeJA0Tunw"
 
 	t.Run("Subscribe_Success", func(t *testing.T) {
 		// Reset mocks
-		deps.StorageClient.Reset()
+		deps.StorageClient.(*MockStorageClient).Reset()
 		deps.PubSubClient.(*MockPubSubClient).Reset()
 
 		// Create request
@@ -32,15 +32,15 @@ func TestRefactoredHandlers_EndToEnd(t *testing.T) {
 
 		// Verify response
 		assert.Equal(t, http.StatusOK, rec.Code)
-		
+
 		var response APIResponse
 		err := json.Unmarshal(rec.Body.Bytes(), &response)
 		require.NoError(t, err)
 		assert.Equal(t, "success", response.Status)
 
 		// Verify mocks
-		assert.Equal(t, 1, deps.StorageClient.LoadCallCount)
-		assert.Equal(t, 1, deps.StorageClient.SaveCallCount)
+		assert.Equal(t, 1, deps.StorageClient.(*MockStorageClient).LoadCallCount)
+		assert.Equal(t, 1, deps.StorageClient.(*MockStorageClient).SaveCallCount)
 		assert.True(t, deps.PubSubClient.(*MockPubSubClient).IsSubscribed(channelID))
 	})
 
@@ -55,7 +55,7 @@ func TestRefactoredHandlers_EndToEnd(t *testing.T) {
 				},
 			},
 		}
-		deps.StorageClient.SetState(state)
+		deps.StorageClient.(*MockStorageClient).SetState(state)
 
 		// Create request
 		req := httptest.NewRequest("DELETE", "/unsubscribe?channel_id="+channelID, nil)
@@ -69,7 +69,7 @@ func TestRefactoredHandlers_EndToEnd(t *testing.T) {
 		assert.Equal(t, http.StatusNoContent, rec.Code)
 
 		// Verify subscription was removed
-		finalState := deps.StorageClient.GetState()
+		finalState := deps.StorageClient.(*MockStorageClient).GetState()
 		assert.NotContains(t, finalState.Subscriptions, channelID)
 		assert.False(t, deps.PubSubClient.(*MockPubSubClient).IsSubscribed(channelID))
 	})
@@ -88,7 +88,7 @@ func TestRefactoredHandlers_EndToEnd(t *testing.T) {
 				},
 			},
 		}
-		deps.StorageClient.SetState(state)
+		deps.StorageClient.(*MockStorageClient).SetState(state)
 
 		// Create request
 		req := httptest.NewRequest("POST", "/renew", nil)
@@ -109,7 +109,7 @@ func TestRefactoredHandlers_EndToEnd(t *testing.T) {
 		assert.Equal(t, 0, response.RenewalsFailed)
 
 		// Verify subscription was renewed
-		finalState := deps.StorageClient.GetState()
+		finalState := deps.StorageClient.(*MockStorageClient).GetState()
 		sub := finalState.Subscriptions[channelID]
 		assert.NotNil(t, sub)
 		assert.True(t, sub.ExpiresAt.After(expiringTime))
@@ -117,11 +117,11 @@ func TestRefactoredHandlers_EndToEnd(t *testing.T) {
 	})
 }
 
-// TestRefactoredHandlers_ErrorScenarios tests error handling
-func TestRefactoredHandlers_ErrorScenarios(t *testing.T) {
+// TestHandlers_ErrorScenarios tests error handling
+func TestHandlers_ErrorScenarios(t *testing.T) {
 	t.Run("Subscribe_StorageError", func(t *testing.T) {
 		deps := CreateTestDependencies()
-		deps.StorageClient.LoadError = ErrMockLoadFailure
+		deps.StorageClient.(*MockStorageClient).LoadError = ErrMockLoadFailure
 
 		req := httptest.NewRequest("POST", "/subscribe?channel_id=UCXuqSBlHAE6Xw-yeJA0Tunw", nil)
 		rec := httptest.NewRecorder()
@@ -130,9 +130,10 @@ func TestRefactoredHandlers_ErrorScenarios(t *testing.T) {
 		handler(rec, req)
 
 		assert.Equal(t, http.StatusInternalServerError, rec.Code)
-		
+
 		var response map[string]interface{}
-		json.Unmarshal(rec.Body.Bytes(), &response)
+		err := json.Unmarshal(rec.Body.Bytes(), &response)
+		require.NoError(t, err)
 		assert.Equal(t, "error", response["status"])
 	})
 
@@ -148,16 +149,17 @@ func TestRefactoredHandlers_ErrorScenarios(t *testing.T) {
 		handler(rec, req)
 
 		assert.Equal(t, http.StatusNotFound, rec.Code)
-		
+
 		var response map[string]interface{}
-		json.Unmarshal(rec.Body.Bytes(), &response)
+		err := json.Unmarshal(rec.Body.Bytes(), &response)
+		require.NoError(t, err)
 		assert.Equal(t, "error", response["status"])
 		assert.Contains(t, response["message"], "not found")
 	})
 
 	t.Run("Renewal_MaxAttemptsExceeded", func(t *testing.T) {
 		deps := CreateTestDependencies()
-		
+
 		// Set up subscription with max attempts exceeded
 		state := &SubscriptionState{
 			Subscriptions: map[string]*Subscription{
@@ -165,11 +167,11 @@ func TestRefactoredHandlers_ErrorScenarios(t *testing.T) {
 					ChannelID:       "UCMaxAttempts",
 					Status:          "active",
 					ExpiresAt:       time.Now().Add(1 * time.Hour), // Needs renewal
-					RenewalAttempts: 10, // Exceeds max attempts
+					RenewalAttempts: 10,                            // Exceeds max attempts
 				},
 			},
 		}
-		deps.StorageClient.SetState(state)
+		deps.StorageClient.(*MockStorageClient).SetState(state)
 
 		req := httptest.NewRequest("POST", "/renew", nil)
 		rec := httptest.NewRecorder()
@@ -180,20 +182,21 @@ func TestRefactoredHandlers_ErrorScenarios(t *testing.T) {
 		assert.Equal(t, http.StatusOK, rec.Code)
 
 		var response RenewalSummaryResponse
-		json.Unmarshal(rec.Body.Bytes(), &response)
+		err := json.Unmarshal(rec.Body.Bytes(), &response)
+		require.NoError(t, err)
 		assert.Equal(t, 0, response.RenewalsSucceeded)
 		assert.Equal(t, 1, response.RenewalsFailed)
 		assert.Contains(t, response.Results[0].Message, "Max renewal attempts")
 	})
 }
 
-// TestRefactoredHandlers_ConcurrentAccess tests thread safety
-func TestRefactoredHandlers_ConcurrentAccess(t *testing.T) {
+// TestHandlers_ConcurrentAccess tests thread safety
+func TestHandlers_ConcurrentAccess(t *testing.T) {
 	deps := CreateTestDependencies()
-	
+
 	// Run multiple operations concurrently
 	done := make(chan bool, 3)
-	
+
 	// Concurrent subscribe
 	go func() {
 		req := httptest.NewRequest("POST", "/subscribe?channel_id=UCConcurrent1", nil)
@@ -202,7 +205,7 @@ func TestRefactoredHandlers_ConcurrentAccess(t *testing.T) {
 		handler(rec, req)
 		done <- true
 	}()
-	
+
 	// Concurrent unsubscribe
 	go func() {
 		req := httptest.NewRequest("DELETE", "/unsubscribe?channel_id=UCConcurrent2", nil)
@@ -211,7 +214,7 @@ func TestRefactoredHandlers_ConcurrentAccess(t *testing.T) {
 		handler(rec, req)
 		done <- true
 	}()
-	
+
 	// Concurrent renewal
 	go func() {
 		req := httptest.NewRequest("POST", "/renew", nil)
@@ -220,40 +223,40 @@ func TestRefactoredHandlers_ConcurrentAccess(t *testing.T) {
 		handler(rec, req)
 		done <- true
 	}()
-	
+
 	// Wait for all operations to complete
 	for i := 0; i < 3; i++ {
 		<-done
 	}
-	
+
 	// Verify no race conditions or panics occurred
 	assert.True(t, true, "Concurrent operations completed without panic")
 }
 
-// TestRefactoredHandlers_NoDependencyOnGlobalTestMode verifies no global state usage
-func TestRefactoredHandlers_NoDependencyOnGlobalTestMode(t *testing.T) {
+// TestHandlers_NoDependencyOnGlobalTestMode verifies no global state usage
+func TestHandlers_NoDependencyOnGlobalTestMode(t *testing.T) {
 	// This test runs without setting any global testMode
 	// If the refactored handlers depend on testMode, they will fail
-	
+
 	deps := CreateTestDependencies()
-	
+
 	// Test subscribe without global testMode
 	t.Run("Subscribe_NoGlobalState", func(t *testing.T) {
 		req := httptest.NewRequest("POST", "/subscribe?channel_id=UCNoGlobalState123456789", nil)
 		rec := httptest.NewRecorder()
-		
+
 		handler := handleSubscribeWithDeps(deps)
 		handler(rec, req)
-		
+
 		if rec.Code != http.StatusOK {
 			var errResp map[string]interface{}
-			json.Unmarshal(rec.Body.Bytes(), &errResp)
+			_ = json.Unmarshal(rec.Body.Bytes(), &errResp)
 			t.Logf("Error response: %v", errResp)
 		}
 		assert.Equal(t, http.StatusOK, rec.Code)
 		// Success proves no dependency on global testMode
 	})
-	
+
 	// Test unsubscribe without global testMode
 	t.Run("Unsubscribe_NoGlobalState", func(t *testing.T) {
 		// Pre-populate subscription
@@ -266,14 +269,14 @@ func TestRefactoredHandlers_NoDependencyOnGlobalTestMode(t *testing.T) {
 				},
 			},
 		}
-		deps.StorageClient.SetState(state)
-		
+		deps.StorageClient.(*MockStorageClient).SetState(state)
+
 		req := httptest.NewRequest("DELETE", "/unsubscribe?channel_id="+channelID, nil)
 		rec := httptest.NewRecorder()
-		
+
 		handler := handleUnsubscribeWithDeps(deps)
 		handler(rec, req)
-		
+
 		assert.Equal(t, http.StatusNoContent, rec.Code)
 		// Success proves no dependency on global testMode
 	})

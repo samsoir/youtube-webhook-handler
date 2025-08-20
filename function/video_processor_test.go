@@ -68,8 +68,8 @@ func TestVideoProcessor_IsNewVideo(t *testing.T) {
 				Published: "invalid-date",
 				Updated:   now.Format(time.RFC3339),
 			},
-			expected:    true,
-			description: "Video with invalid published date should be considered new (fail-safe)",
+			expected:    false,
+			description: "Video with invalid published date should be skipped for safety",
 		},
 		{
 			name: "video_with_invalid_updated_date",
@@ -80,8 +80,8 @@ func TestVideoProcessor_IsNewVideo(t *testing.T) {
 				Published: now.Format(time.RFC3339),
 				Updated:   "invalid-date",
 			},
-			expected:    true,
-			description: "Video with invalid updated date should be considered new (fail-safe)",
+			expected:    false,
+			description: "Video with invalid updated date should be skipped for safety",
 		},
 		{
 			name: "video_with_both_invalid_dates",
@@ -92,8 +92,8 @@ func TestVideoProcessor_IsNewVideo(t *testing.T) {
 				Published: "invalid-date-1",
 				Updated:   "invalid-date-2",
 			},
-			expected:    true,
-			description: "Video with both invalid dates should be considered new (fail-safe)",
+			expected:    false,
+			description: "Video with both invalid dates should be skipped for safety",
 		},
 		{
 			name: "exactly_at_hour_boundary",
@@ -224,7 +224,7 @@ func TestVideoProcessor_EdgeCases(t *testing.T) {
 	t.Run("multiple_processor_instances", func(t *testing.T) {
 		processor1 := NewVideoProcessor()
 		processor2 := NewVideoProcessor()
-		
+
 		// Different instances should work independently
 		entry := &Entry{
 			VideoID:   "test_video_id",
@@ -233,10 +233,10 @@ func TestVideoProcessor_EdgeCases(t *testing.T) {
 			Published: time.Now().Add(-30 * time.Minute).Format(time.RFC3339),
 			Updated:   time.Now().Add(-29 * time.Minute).Format(time.RFC3339),
 		}
-		
+
 		result1 := processor1.IsNewVideo(entry)
 		result2 := processor2.IsNewVideo(entry)
-		
+
 		assert.Equal(t, result1, result2, "Different processor instances should give same results")
 	})
 
@@ -252,13 +252,13 @@ func TestVideoProcessor_EdgeCases(t *testing.T) {
 		// Test concurrent access to the same processor
 		const numGoroutines = 10
 		results := make(chan bool, numGoroutines)
-		
+
 		for i := 0; i < numGoroutines; i++ {
 			go func() {
 				results <- processor.IsNewVideo(entry)
 			}()
 		}
-		
+
 		// All results should be the same
 		firstResult := <-results
 		for i := 1; i < numGoroutines; i++ {

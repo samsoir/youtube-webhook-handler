@@ -48,7 +48,7 @@ func (c *HTTPPubSubClient) Unsubscribe(channelID string) error {
 // makePubSubHubbubRequest makes a subscription/unsubscription request to the hub.
 func (c *HTTPPubSubClient) makePubSubHubbubRequest(channelID, mode string) error {
 	topicURL := fmt.Sprintf("https://www.youtube.com/feeds/videos.xml?channel_id=%s", channelID)
-	
+
 	data := url.Values{}
 	data.Set("hub.callback", c.callbackURL)
 	data.Set("hub.topic", topicURL)

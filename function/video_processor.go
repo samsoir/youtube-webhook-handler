@@ -18,14 +18,14 @@ func (vp *VideoProcessor) IsNewVideo(entry *Entry) bool {
 	// Parse timestamps
 	published, err := time.Parse(time.RFC3339, entry.Published)
 	if err != nil {
-		// If we can't parse the timestamp, assume it's new
-		return true
+		// If we can't parse the timestamp, skip for safety (don't assume it's new)
+		return false
 	}
 
 	updated, err := time.Parse(time.RFC3339, entry.Updated)
 	if err != nil {
-		// If we can't parse the timestamp, assume it's new
-		return true
+		// If we can't parse the timestamp, skip for safety (don't assume it's new)
+		return false
 	}
 
 	now := time.Now()
@@ -54,14 +54,14 @@ func (vp *VideoProcessor) ValidateEntry(entry *Entry) error {
 	if entry == nil {
 		return ErrInvalidEntry
 	}
-	
+
 	if entry.VideoID == "" {
 		return ErrMissingVideoID
 	}
-	
+
 	if entry.ChannelID == "" {
 		return ErrMissingChannelID
 	}
-	
+
 	return nil
 }

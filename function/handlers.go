@@ -99,14 +99,6 @@ func handleSubscribeWithDeps(deps *Dependencies) http.HandlerFunc {
 	}
 }
 
-// handleSubscribeRefactored is a compatibility wrapper that uses the refactored function.
-// This allows us to test the refactored version while keeping the original intact.
-func handleSubscribeRefactored(w http.ResponseWriter, r *http.Request) {
-	deps := GetDependencies()
-	handler := handleSubscribeWithDeps(deps)
-	handler(w, r)
-}
-
 // handleUnsubscribeWithDeps handles DELETE /unsubscribe requests using dependency injection.
 func handleUnsubscribeWithDeps(deps *Dependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -160,12 +152,7 @@ func handleUnsubscribeWithDeps(deps *Dependencies) http.HandlerFunc {
 	}
 }
 
-// handleUnsubscribeRefactored is a compatibility wrapper that uses the refactored function.
-func handleUnsubscribeRefactored(w http.ResponseWriter, r *http.Request) {
-	deps := GetDependencies()
-	handler := handleUnsubscribeWithDeps(deps)
-	handler(w, r)
-}
+// handleUnsubscribe is a compatibility wrapper that uses the refactored function.
 
 // handleRenewSubscriptionsWithDeps handles POST /renew requests using dependency injection.
 func handleRenewSubscriptionsWithDeps(deps *Dependencies) http.HandlerFunc {
@@ -267,18 +254,13 @@ func renewSubscriptionWithDeps(ctx context.Context, channelID string, subscripti
 	}
 }
 
-// handleRenewSubscriptionsRefactored is a compatibility wrapper that uses the refactored function.
-func handleRenewSubscriptionsRefactored(w http.ResponseWriter, r *http.Request) {
-	deps := GetDependencies()
-	handler := handleRenewSubscriptionsWithDeps(deps)
-	handler(w, r)
-}
+// handleRenewSubscriptions is a compatibility wrapper that uses the refactored function.
 
 // handleNotificationWithDeps handles POST / requests (YouTube notifications) using dependency injection.
 func handleNotificationWithDeps(deps *Dependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Create notification service with injected dependencies
-		notificationService := &NotificationServiceWithDeps{
+		notificationService := &NotificationService{
 			VideoProcessor: NewVideoProcessor(),
 			GitHubClient:   deps.GitHubClient,
 			RepoOwner:      os.Getenv("REPO_OWNER"),
@@ -305,16 +287,22 @@ func handleNotificationWithDeps(deps *Dependencies) http.HandlerFunc {
 	}
 }
 
-// NotificationServiceWithDeps is a version of NotificationService that uses dependency injection.
-type NotificationServiceWithDeps struct {
+// NotificationService is a version of NotificationService that uses dependency injection.
+type NotificationService struct {
 	VideoProcessor *VideoProcessor
 	GitHubClient   GitHubClientInterface
 	RepoOwner      string
 	RepoName       string
 }
 
+// NotificationResult represents the result of processing a notification
+type NotificationResult struct {
+	Status  string `json:"status"`
+	Message string `json:"message"`
+}
+
 // ProcessNotification handles the complete notification processing workflow.
-func (ns *NotificationServiceWithDeps) ProcessNotification(r *http.Request) (*NotificationResult, error) {
+func (ns *NotificationService) ProcessNotification(r *http.Request) (*NotificationResult, error) {
 	// Parse the incoming XML notification
 	entry, err := ns.parseNotification(r)
 	if err != nil {
@@ -372,7 +360,7 @@ func (ns *NotificationServiceWithDeps) ProcessNotification(r *http.Request) (*No
 }
 
 // parseNotification parses the XML notification from the request body.
-func (ns *NotificationServiceWithDeps) parseNotification(r *http.Request) (*Entry, error) {
+func (ns *NotificationService) parseNotification(r *http.Request) (*Entry, error) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read request body")
@@ -390,9 +378,4 @@ func (ns *NotificationServiceWithDeps) parseNotification(r *http.Request) (*Entr
 	return feed.Entry, nil
 }
 
-// handleNotificationRefactored is a compatibility wrapper that uses the refactored function.
-func handleNotificationRefactored(w http.ResponseWriter, r *http.Request) {
-	deps := GetDependencies()
-	handler := handleNotificationWithDeps(deps)
-	handler(w, r)
-}
+// handleNotification is a compatibility wrapper that uses the refactored function.

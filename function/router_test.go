@@ -1,6 +1,7 @@
 package webhook
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -10,13 +11,18 @@ import (
 	"time"
 )
 
-func TestYouTubeWebhookRefactored_Subscribe(t *testing.T) {
+func TestYouTubeWebhook_Subscribe(t *testing.T) {
+	// Set up test dependencies
+	deps := CreateTestDependencies()
+	SetDependencies(deps)
+	defer SetDependencies(nil) // Clean up
+
 	// Create test request
 	req := httptest.NewRequest("POST", "/subscribe?channel_id=UCabcdefghijklmnopqrstuv", nil)
 	rec := httptest.NewRecorder()
 
 	// Call refactored router
-	YouTubeWebhookRefactored(rec, req)
+	YouTubeWebhook(rec, req)
 
 	// Verify response
 	if rec.Code != http.StatusOK {
@@ -30,27 +36,27 @@ func TestYouTubeWebhookRefactored_Subscribe(t *testing.T) {
 	}
 }
 
-func TestYouTubeWebhookRefactored_Unsubscribe(t *testing.T) {
+func TestYouTubeWebhook_Unsubscribe(t *testing.T) {
 	// First create a subscription for testing
 	deps := CreateTestDependencies()
 	SetDependencies(deps)
-	
+
 	// Add a test subscription
-	state, _ := deps.StorageClient.LoadSubscriptionState(nil)
+	state, _ := deps.StorageClient.LoadSubscriptionState(context.TODO())
 	state.Subscriptions["UCabcdefghijklmnopqrstuv"] = &Subscription{
 		ChannelID:    "UCabcdefghijklmnopqrstuv",
 		Status:       "active",
 		SubscribedAt: time.Now(),
 		ExpiresAt:    time.Now().Add(24 * time.Hour),
 	}
-	deps.StorageClient.SaveSubscriptionState(nil, state)
+	_ = deps.StorageClient.SaveSubscriptionState(context.TODO(), state)
 
 	// Create test request
 	req := httptest.NewRequest("DELETE", "/unsubscribe?channel_id=UCabcdefghijklmnopqrstuv", nil)
 	rec := httptest.NewRecorder()
 
 	// Call refactored router
-	YouTubeWebhookRefactored(rec, req)
+	YouTubeWebhook(rec, req)
 
 	// Verify response
 	if rec.Code != http.StatusNoContent {
@@ -58,13 +64,13 @@ func TestYouTubeWebhookRefactored_Unsubscribe(t *testing.T) {
 	}
 }
 
-func TestYouTubeWebhookRefactored_GetSubscriptions(t *testing.T) {
+func TestYouTubeWebhook_GetSubscriptions(t *testing.T) {
 	// Create test request
 	req := httptest.NewRequest("GET", "/subscriptions", nil)
 	rec := httptest.NewRecorder()
 
 	// Call refactored router
-	YouTubeWebhookRefactored(rec, req)
+	YouTubeWebhook(rec, req)
 
 	// Verify response
 	if rec.Code != http.StatusOK {
@@ -78,13 +84,13 @@ func TestYouTubeWebhookRefactored_GetSubscriptions(t *testing.T) {
 	}
 }
 
-func TestYouTubeWebhookRefactored_RenewSubscriptions(t *testing.T) {
+func TestYouTubeWebhook_RenewSubscriptions(t *testing.T) {
 	// Create test request
 	req := httptest.NewRequest("POST", "/renew", nil)
 	rec := httptest.NewRecorder()
 
 	// Call refactored router
-	YouTubeWebhookRefactored(rec, req)
+	YouTubeWebhook(rec, req)
 
 	// Verify response
 	if rec.Code != http.StatusOK {
@@ -98,13 +104,13 @@ func TestYouTubeWebhookRefactored_RenewSubscriptions(t *testing.T) {
 	}
 }
 
-func TestYouTubeWebhookRefactored_VerificationChallenge(t *testing.T) {
+func TestYouTubeWebhook_VerificationChallenge(t *testing.T) {
 	// Create test request with challenge parameter
 	req := httptest.NewRequest("GET", "/?hub.challenge=test-challenge-123", nil)
 	rec := httptest.NewRecorder()
 
 	// Call refactored router
-	YouTubeWebhookRefactored(rec, req)
+	YouTubeWebhook(rec, req)
 
 	// Verify response
 	if rec.Code != http.StatusOK {
@@ -118,7 +124,7 @@ func TestYouTubeWebhookRefactored_VerificationChallenge(t *testing.T) {
 	}
 }
 
-func TestYouTubeWebhookRefactored_Notification(t *testing.T) {
+func TestYouTubeWebhook_Notification(t *testing.T) {
 	// Set environment variables for GitHub integration
 	os.Setenv("REPO_OWNER", "test-owner")
 	os.Setenv("REPO_NAME", "test-repo")
@@ -150,7 +156,7 @@ func TestYouTubeWebhookRefactored_Notification(t *testing.T) {
 	rec := httptest.NewRecorder()
 
 	// Call refactored router
-	YouTubeWebhookRefactored(rec, req)
+	YouTubeWebhook(rec, req)
 
 	// Verify response
 	if rec.Code != http.StatusOK {
@@ -158,13 +164,13 @@ func TestYouTubeWebhookRefactored_Notification(t *testing.T) {
 	}
 }
 
-func TestYouTubeWebhookRefactored_OptionsRequest(t *testing.T) {
+func TestYouTubeWebhook_OptionsRequest(t *testing.T) {
 	// Create test OPTIONS request
 	req := httptest.NewRequest("OPTIONS", "/", nil)
 	rec := httptest.NewRecorder()
 
 	// Call refactored router
-	YouTubeWebhookRefactored(rec, req)
+	YouTubeWebhook(rec, req)
 
 	// Verify response
 	if rec.Code != http.StatusOK {
@@ -172,13 +178,13 @@ func TestYouTubeWebhookRefactored_OptionsRequest(t *testing.T) {
 	}
 }
 
-func TestYouTubeWebhookRefactored_MethodNotAllowed(t *testing.T) {
+func TestYouTubeWebhook_MethodNotAllowed(t *testing.T) {
 	// Create test request with unsupported method
 	req := httptest.NewRequest("PATCH", "/", nil)
 	rec := httptest.NewRecorder()
 
 	// Call refactored router
-	YouTubeWebhookRefactored(rec, req)
+	YouTubeWebhook(rec, req)
 
 	// Verify response
 	if rec.Code != http.StatusMethodNotAllowed {
@@ -192,13 +198,13 @@ func TestYouTubeWebhookRefactored_MethodNotAllowed(t *testing.T) {
 	}
 }
 
-func TestYouTubeWebhookRefactored_CORSHeaders(t *testing.T) {
+func TestYouTubeWebhook_CORSHeaders(t *testing.T) {
 	// Create test request
 	req := httptest.NewRequest("GET", "/subscriptions", nil)
 	rec := httptest.NewRecorder()
 
 	// Call refactored router
-	YouTubeWebhookRefactored(rec, req)
+	YouTubeWebhook(rec, req)
 
 	// Verify CORS headers are set
 	if rec.Header().Get("Access-Control-Allow-Origin") != "*" {
@@ -219,7 +225,7 @@ func TestHandleGetSubscriptionsWithDeps(t *testing.T) {
 	deps := CreateTestDependencies()
 
 	// Add some test subscriptions
-	state, _ := deps.StorageClient.LoadSubscriptionState(nil)
+	state, _ := deps.StorageClient.LoadSubscriptionState(context.TODO())
 	now := time.Now()
 	state.Subscriptions["UCabcdefghijklmnopqrstuv"] = &Subscription{
 		ChannelID:    "UCabcdefghijklmnopqrstuv",
@@ -233,7 +239,7 @@ func TestHandleGetSubscriptionsWithDeps(t *testing.T) {
 		SubscribedAt: now.Add(-48 * time.Hour),
 		ExpiresAt:    now.Add(-1 * time.Hour), // Expired
 	}
-	deps.StorageClient.SaveSubscriptionState(nil, state)
+	_ = deps.StorageClient.SaveSubscriptionState(context.TODO(), state)
 
 	// Create test request
 	req := httptest.NewRequest("GET", "/subscriptions", nil)
@@ -269,7 +275,7 @@ func TestHandleGetSubscriptionsRefactored_CompatibilityWrapper(t *testing.T) {
 	rec := httptest.NewRecorder()
 
 	// Call the compatibility wrapper
-	handleGetSubscriptionsRefactored(rec, req)
+	handleGetSubscriptions(rec, req)
 
 	// Verify it behaves like a normal handler (status should be set)
 	if rec.Code == 0 {
@@ -277,20 +283,10 @@ func TestHandleGetSubscriptionsRefactored_CompatibilityWrapper(t *testing.T) {
 	}
 }
 
-func TestYouTubeWebhookRefactored_NoDependencyOnGlobalState(t *testing.T) {
+func TestYouTubeWebhook_NoDependencyOnGlobalState(t *testing.T) {
 	// This test verifies that the refactored router doesn't depend on global testMode
 
-	// Save original test mode
-	originalTestMode := GetTestMode()
-	originalStorageClient := GetStorageClient()
-	defer func() {
-		SetTestMode(originalTestMode)
-		SetStorageClient(originalStorageClient)
-	}()
-
-	// Set global state to different values
-	SetTestMode(false) // Disable test mode globally
-	SetStorageClient(&CloudStorageClient{}) // Use production storage client
+	// Global state has been removed - testing pure DI approach
 
 	// Create test dependencies (should override global state)
 	testDeps := CreateTestDependencies()
@@ -301,7 +297,7 @@ func TestYouTubeWebhookRefactored_NoDependencyOnGlobalState(t *testing.T) {
 	rec := httptest.NewRecorder()
 
 	// Call refactored router - should use injected dependencies, not global state
-	YouTubeWebhookRefactored(rec, req)
+	YouTubeWebhook(rec, req)
 
 	// Verify response (should succeed using test dependencies, not global state)
 	if rec.Code != http.StatusOK {

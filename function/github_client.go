@@ -11,9 +11,9 @@ import (
 
 // GitHubClient handles GitHub API interactions
 type GitHubClient struct {
-	Token    string
-	BaseURL  string
-	Client   *http.Client
+	Token   string
+	BaseURL string
+	Client  *http.Client
 }
 
 // NewGitHubClient creates a new GitHub API client
@@ -93,4 +93,3 @@ func (gc *GitHubClient) sendDispatch(repoOwner, repoName string, dispatch GitHub
 
 	return nil
 }
-

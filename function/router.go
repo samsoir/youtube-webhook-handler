@@ -7,9 +7,9 @@ import (
 	"time"
 )
 
-// YouTubeWebhookRefactored handles YouTube PubSubHubbub notifications and subscription management
+// YouTubeWebhook handles YouTube PubSubHubbub notifications and subscription management
 // using dependency injection instead of global state
-func YouTubeWebhookRefactored(w http.ResponseWriter, r *http.Request) {
+func YouTubeWebhook(w http.ResponseWriter, r *http.Request) {
 	// Set CORS headers for all requests
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
@@ -21,7 +21,7 @@ func YouTubeWebhookRefactored(w http.ResponseWriter, r *http.Request) {
 
 	// Route based on path and method
 	path := strings.TrimPrefix(r.URL.Path, "/")
-	
+
 	switch {
 	case path == "subscribe" && r.Method == http.MethodPost:
 		handler := handleSubscribeWithDeps(deps)
@@ -57,35 +57,35 @@ func YouTubeWebhookRefactored(w http.ResponseWriter, r *http.Request) {
 func handleGetSubscriptionsWithDeps(deps *Dependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		
+
 		// Load subscription state from injected storage client
 		state, err := deps.StorageClient.LoadSubscriptionState(ctx)
 		if err != nil {
-			writeErrorResponse(w, http.StatusInternalServerError, "", 
+			writeErrorResponse(w, http.StatusInternalServerError, "",
 				fmt.Sprintf("Unable to load subscription state from storage: %v", err))
 			return
 		}
-		
+
 		// Calculate expiry status and statistics (same logic as original)
 		now := getCurrentTime()
 		subscriptions := make([]SubscriptionInfo, 0)
 		total := 0
 		active := 0
 		expired := 0
-		
+
 		for _, sub := range state.Subscriptions {
 			total++
-			
+
 			status := "active"
 			daysUntilExpiry := sub.ExpiresAt.Sub(now).Hours() / 24
-			
+
 			if sub.ExpiresAt.Before(now) {
 				status = "expired"
 				expired++
 			} else {
 				active++
 			}
-			
+
 			subscriptions = append(subscriptions, SubscriptionInfo{
 				ChannelID:       sub.ChannelID,
 				Status:          status,
@@ -93,7 +93,7 @@ func handleGetSubscriptionsWithDeps(deps *Dependencies) http.HandlerFunc {
 				DaysUntilExpiry: daysUntilExpiry,
 			})
 		}
-		
+
 		response := SubscriptionsListResponse{
 			Subscriptions: subscriptions,
 			Total:         total,
@@ -106,7 +106,7 @@ func handleGetSubscriptionsWithDeps(deps *Dependencies) http.HandlerFunc {
 
 // Compatibility wrapper for the refactored router
 // This allows gradual migration from the original router
-func handleGetSubscriptionsRefactored(w http.ResponseWriter, r *http.Request) {
+func handleGetSubscriptions(w http.ResponseWriter, r *http.Request) {
 	deps := GetDependencies()
 	handler := handleGetSubscriptionsWithDeps(deps)
 	handler(w, r)

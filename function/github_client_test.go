@@ -17,10 +17,10 @@ func TestNewGitHubClient(t *testing.T) {
 	// Set up environment
 	originalToken := os.Getenv("GITHUB_TOKEN")
 	originalBaseURL := os.Getenv("GITHUB_API_BASE_URL")
-	
+
 	os.Setenv("GITHUB_TOKEN", "test-token")
 	os.Setenv("GITHUB_API_BASE_URL", "https://custom-api.github.com")
-	
+
 	defer func() {
 		if originalToken == "" {
 			os.Unsetenv("GITHUB_TOKEN")
@@ -35,7 +35,7 @@ func TestNewGitHubClient(t *testing.T) {
 	}()
 
 	client := NewGitHubClient()
-	
+
 	assert.NotNil(t, client)
 	assert.Equal(t, "test-token", client.Token)
 	assert.Equal(t, "https://custom-api.github.com", client.BaseURL)
@@ -47,10 +47,10 @@ func TestNewGitHubClient_DefaultBaseURL(t *testing.T) {
 	// Clear environment
 	originalToken := os.Getenv("GITHUB_TOKEN")
 	originalBaseURL := os.Getenv("GITHUB_API_BASE_URL")
-	
+
 	os.Setenv("GITHUB_TOKEN", "test-token")
 	os.Unsetenv("GITHUB_API_BASE_URL")
-	
+
 	defer func() {
 		if originalToken == "" {
 			os.Unsetenv("GITHUB_TOKEN")
@@ -65,7 +65,7 @@ func TestNewGitHubClient_DefaultBaseURL(t *testing.T) {
 	}()
 
 	client := NewGitHubClient()
-	
+
 	assert.Equal(t, "https://api.github.com", client.BaseURL)
 }
 
@@ -94,7 +94,7 @@ func TestGitHubClient_IsConfigured(t *testing.T) {
 				BaseURL: "https://api.github.com",
 				Client:  &http.Client{Timeout: 30 * time.Second},
 			}
-			
+
 			result := client.IsConfigured()
 			assert.Equal(t, tc.expected, result)
 		})
@@ -158,12 +158,12 @@ func TestGitHubClient_TriggerWorkflow_Success(t *testing.T) {
 		// Verify request method and path
 		assert.Equal(t, "POST", r.Method)
 		assert.Equal(t, "/repos/test-owner/test-repo/dispatches", r.URL.Path)
-		
+
 		// Verify headers
 		assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
 		assert.Equal(t, "token test-token", r.Header.Get("Authorization"))
 		assert.Equal(t, "application/vnd.github.v3+json", r.Header.Get("Accept"))
-		
+
 		// Return success
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -191,7 +191,7 @@ func TestGitHubClient_TriggerWorkflow_HTTPError(t *testing.T) {
 	// Create mock server that returns error
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("Bad Request"))
+		_, _ = w.Write([]byte("Bad Request"))
 	}))
 	defer server.Close()
 
@@ -391,4 +391,24 @@ func TestGitHubClient_EdgeCases(t *testing.T) {
 		err := client.TriggerWorkflow("test-owner", "test-repo", entry)
 		assert.NoError(t, err)
 	})
+}
+
+// TestMockGitHubClient_Reset tests the Reset method that was not covered
+func TestMockGitHubClient_Reset(t *testing.T) {
+	mock := NewMockGitHubClient()
+	
+	// Add some data to the mock
+	mock.TriggerWorkflow("test-owner", "test-repo", &Entry{VideoID: "test1", Title: "Test 1"})
+	mock.TriggerWorkflow("test-owner", "test-repo", &Entry{VideoID: "test2", Title: "Test 2"})
+	
+	// Verify data exists
+	assert.Equal(t, 2, mock.GetTriggerCallCount())
+	assert.Equal(t, "test2", mock.GetLastEntry().VideoID)
+	
+	// Reset the mock
+	mock.Reset()
+	
+	// Verify reset worked
+	assert.Equal(t, 0, mock.GetTriggerCallCount())
+	assert.Nil(t, mock.GetLastEntry())
 }

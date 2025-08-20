@@ -28,7 +28,7 @@ func TestHandleNotificationWithDeps_Success(t *testing.T) {
 	now := time.Now()
 	published := now.Add(-10 * time.Minute).Format(time.RFC3339)
 	updated := now.Add(-9 * time.Minute).Format(time.RFC3339)
-	
+
 	testXML := fmt.Sprintf(`<?xml version='1.0' encoding='UTF-8'?>
 <feed xmlns:yt="http://www.youtube.com/xml/schemas/2015"
       xmlns="http://www.w3.org/2005/Atom">
@@ -321,7 +321,7 @@ func (fr *testFailingReader) Close() error {
 	return nil
 }
 
-func TestNotificationServiceWithDeps_ProcessNotification_ThreadSafety(t *testing.T) {
+func TestNotificationService_ProcessNotification_ThreadSafety(t *testing.T) {
 	// Create test dependencies
 	deps := CreateTestDependencies()
 	mockGitHub := deps.GitHubClient.(*MockGitHubClient)
@@ -364,7 +364,7 @@ func TestNotificationServiceWithDeps_ProcessNotification_ThreadSafety(t *testing
 			req := httptest.NewRequest("POST", "/", strings.NewReader(testXML))
 			rec := httptest.NewRecorder()
 			handler(rec, req)
-			
+
 			if rec.Code != http.StatusOK {
 				t.Errorf("Expected status %d, got %d", http.StatusOK, rec.Code)
 			}
@@ -416,11 +416,13 @@ func TestHandleNotificationRefactored_CompatibilityWrapper(t *testing.T) {
 	req := httptest.NewRequest("POST", "/", strings.NewReader(testXML))
 	rec := httptest.NewRecorder()
 
-	// Call the compatibility wrapper
-	handleNotificationRefactored(rec, req)
+	// Call the dependency injection handler directly
+	deps := CreateTestDependencies()
+	handler := handleNotificationWithDeps(deps)
+	handler(rec, req)
 
 	// Verify it behaves like a normal handler (status should be set)
 	if rec.Code == 0 {
-		t.Error("Expected non-zero status code from compatibility wrapper")
+		t.Error("Expected non-zero status code from dependency injection handler")
 	}
 }

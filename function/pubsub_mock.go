@@ -4,14 +4,14 @@ import "sync"
 
 // MockPubSubClient implements PubSubClient for testing.
 type MockPubSubClient struct {
-	mu                sync.RWMutex
-	subscribeError    error
-	unsubscribeError  error
-	subscribeCount    int
-	unsubscribeCount  int
-	lastChannelID     string
-	lastMode          string
-	subscriptions     map[string]bool
+	mu               sync.RWMutex
+	subscribeError   error
+	unsubscribeError error
+	subscribeCount   int
+	unsubscribeCount int
+	lastChannelID    string
+	lastMode         string
+	subscriptions    map[string]bool
 }
 
 // NewMockPubSubClient creates a new mock PubSub client.
