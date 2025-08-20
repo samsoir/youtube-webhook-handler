@@ -3,15 +3,14 @@ module github.com/samsoir/youtube-webhook
 go 1.23.0
 
 require (
-	github.com/GoogleCloudPlatform/functions-framework-go v1.8.0
+	github.com/GoogleCloudPlatform/functions-framework-go v1.9.2
 	github.com/stretchr/testify v1.10.0
 )
 
 require (
 	github.com/cloudevents/sdk-go/v2 v2.15.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/google/go-cmp v0.7.0 // indirect
-	github.com/google/uuid v1.4.0 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/json-iterator/go v1.1.10 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180228061459-e0a39a4cb421 // indirect
 	github.com/modern-go/reflect2 v0.0.0-20180701023420-4b7aa43c6742 // indirect
