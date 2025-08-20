@@ -70,7 +70,7 @@ func TestValidateChannelID(t *testing.T) {
         {"valid", "UCXuqSBlHAE6Xw-yeJA0Tunw", true},
         {"too_short", "UC123", false},
         {"wrong_prefix", "ABXuqSBlHAE6Xw-yeJA0Tunw", false},
-        {"invalid_chars", "UC!@#$%^&*()[]{}|\\<>?/", false},
+        {"invalid_chars", "UC!@#$%^&*()[]{}|\\<>? /", false},
     }
     
     for _, tt := range tests {

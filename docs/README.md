@@ -17,12 +17,12 @@ Welcome to the YouTube Webhook Service documentation. This comprehensive guide c
 ### [Development](./development/)
 - [Getting Started](./development/getting-started.md) - Setup and configuration
 - [Testing](./development/testing.md) - Testing strategies and coverage
-- [Contributing](./development/contributing.md) - Contribution guidelines
+- [Contributing](./contributing.md) - Contribution guidelines
 
 ### [Deployment](./deployment/)
-- [Cloud Functions](./deployment/cloud-functions.md) - Google Cloud deployment
-- [Terraform](./deployment/terraform.md) - Infrastructure as Code
-- [CI/CD](./deployment/ci-cd.md) - Automated deployment
+- [Cloud Functions](./cloud-functions.md) - Google Cloud deployment
+- [Terraform](./terraform.md) - Infrastructure as Code
+- [CI/CD](./ci-cd.md) - Automated deployment
 
 ### [Operations](./operations/)
 - [Monitoring](./operations/monitoring.md) - Observability and metrics

@@ -32,7 +32,7 @@ The YouTube Webhook Service deploys to Google Cloud Functions Gen 2, providing a
    ```bash
    gcloud projects add-iam-policy-binding your-project-id \
      --member="serviceAccount:youtube-webhook-sa@your-project-id.iam.gserviceaccount.com" \
-     --role="roles/cloudfunctions.invoker"
+     --role="roles/cloudfunctions.invoker" 
    
    gcloud projects add-iam-policy-binding your-project-id \
      --member="serviceAccount:youtube-webhook-sa@your-project-id.iam.gserviceaccount.com" \
@@ -369,7 +369,7 @@ gcloud alpha monitoring policies create \
   --notification-channels=CHANNEL_ID \
   --display-name="Function Error Rate" \
   --condition-display-name="Error rate > 1%" \
-  --condition-expression='
+  --condition-expression=' 
     resource.type="cloud_function"
     AND resource.labels.function_name="YouTubeWebhook"
     AND metric.type="cloudfunctions.googleapis.com/function/error_rate"
