@@ -2,7 +2,7 @@
 
 A serverless Google Cloud Function that processes YouTube PubSubHubbub webhook notifications and triggers GitHub Actions workflows when new videos are published.
 
-[![Test Coverage](https://img.shields.io/badge/coverage-82.4%25-brightgreen)](docs/development/testing.md)
+[![Test Coverage](https://img.shields.io/badge/coverage-82.9%25-brightgreen)](docs/development/testing.md)
 [![Go](https://img.shields.io/badge/go-1.23-blue)](https://golang.org/)
 [![Terraform](https://img.shields.io/badge/terraform-1.12.2-blue)](https://terraform.io/)
 
@@ -30,7 +30,7 @@ make test
 - 🔔 **Real-time Notifications** - Instant YouTube video notifications via PubSubHubbub
 - 🔄 **Auto-renewal** - Automatic subscription renewal with Cloud Scheduler
 - 🚀 **Serverless** - Auto-scaling with Cloud Functions Gen 2
-- 🛡️ **Production Ready** - 82.4% test coverage with comprehensive testing
+- 🛡️ **Production Ready** - 82.9% test coverage with dependency injection architecture
 - 📊 **Observable** - Structured logging and monitoring
 - 🏗️ **Infrastructure as Code** - Complete Terraform configuration
 
@@ -57,6 +57,7 @@ make test
 
 ### 🏛️ Architecture
 - [**System Architecture**](docs/architecture/overview.md) - High-level design
+- [**Dependency Injection**](docs/architecture/dependency-injection.md) - DI architecture and patterns
 - [**Subscription Management**](docs/architecture/subscription-management.md) - Subscription system details
 - [**Webhook Processing**](docs/architecture/webhook-processing.md) - Notification handling
 

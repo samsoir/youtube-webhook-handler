@@ -4,10 +4,11 @@ Thank you for your interest in contributing to the YouTube Webhook Service! This
 
 ## Architecture & Design
 
-For detailed information about system design and planned features:
-- **[SUBSCRIPTION_DESIGN.md](./SUBSCRIPTION_DESIGN.md)** - YouTube subscription management architecture
-- **[README.md](./README.md)** - Project overview and setup
-- **[TESTING.md](./TESTING.md)** - Testing strategy and guidelines
+For detailed information about system design and implementation:
+- **[Architecture Overview](docs/architecture/overview.md)** - System design and components
+- **[Dependency Injection](docs/architecture/dependency-injection.md)** - DI patterns and testing
+- **[Testing Guide](docs/development/testing.md)** - Testing strategy and guidelines
+- **[API Documentation](docs/api/endpoints.md)** - Complete API reference
 
 ## Quick Start for Contributors
 

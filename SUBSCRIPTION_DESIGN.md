@@ -1,8 +1,13 @@
 # YouTube Subscription Management Design
 
+> **Note:** This is a design document preserved for historical reference. For current implementation details, see:
+> - [Subscription Management Architecture](docs/architecture/subscription-management.md)
+> - [API Endpoints](docs/api/endpoints.md)
+> - [Dependency Injection Architecture](docs/architecture/dependency-injection.md)
+
 ## Overview
 
-This document outlines the design for YouTube PubSubHubbub subscription management, completing the integration with YouTube's real-time notification system.
+This document outlines the original design for YouTube PubSubHubbub subscription management, completing the integration with YouTube's real-time notification system.
 
 ## Architecture
 

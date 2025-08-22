@@ -2,7 +2,7 @@
 
 ## Overview
 
-The project maintains **82.4% test coverage** with comprehensive unit, integration, and load testing strategies.
+The project maintains **82.9% test coverage** with comprehensive unit, integration, and load testing strategies using dependency injection for clean, isolated tests.
 
 ## Test Structure
 
@@ -50,7 +50,7 @@ go test -cover ./function
 
 Current coverage targets:
 - Minimum: 80%
-- Current: 82.4%
+- Current: 82.9%
 - Goal: 85%
 
 ## Test Categories
@@ -90,7 +90,16 @@ Test interactions between components.
 ```go
 func TestStorageIntegration(t *testing.T) {
     ctx := context.Background()
-    service := NewOptimizedCloudStorageService()
+    
+    // Create dependencies with real storage, mock external services
+    deps := &Dependencies{
+        StorageClient: NewCloudStorageService(), // Real storage
+        PubSubClient:  NewMockPubSubClient(),   // Mock PubSub
+        GitHubClient:  NewMockGitHubClient(),   // Mock GitHub
+    }
+    
+    SetDependencies(deps)
+    defer SetDependencies(nil)
     
     // Create test state
     state := &SubscriptionState{
@@ -102,12 +111,12 @@ func TestStorageIntegration(t *testing.T) {
         },
     }
     
-    // Save state
-    err := service.SaveSubscriptionState(ctx, state)
+    // Save state through dependency
+    err := deps.StorageClient.SaveSubscriptionState(ctx, state)
     assert.NoError(t, err)
     
-    // Load state
-    loaded, err := service.LoadSubscriptionState(ctx)
+    // Load state through dependency
+    loaded, err := deps.StorageClient.LoadSubscriptionState(ctx)
     assert.NoError(t, err)
     assert.Equal(t, 1, len(loaded.Subscriptions))
 }
@@ -120,6 +129,19 @@ Test HTTP endpoints and request/response handling.
 **Example: Subscribe Endpoint**
 ```go
 func TestSubscribeEndpoint(t *testing.T) {
+    // Create and inject test dependencies
+    deps := CreateTestDependencies()
+    
+    // Configure mock behavior
+    mockPubSub := deps.PubSubClient.(*MockPubSubClient)
+    mockPubSub.SubscribeFunc = func(channelID, callback string) error {
+        return nil // Simulate successful subscription
+    }
+    
+    SetDependencies(deps)
+    defer SetDependencies(nil)
+    
+    // Test the endpoint
     req := httptest.NewRequest("POST", "/subscribe?channel_id=UCXuqSBlHAE6Xw-yeJA0Tunw", nil)
     rec := httptest.NewRecorder()
     
@@ -130,6 +152,9 @@ func TestSubscribeEndpoint(t *testing.T) {
     var response map[string]interface{}
     json.Unmarshal(rec.Body.Bytes(), &response)
     assert.Equal(t, "success", response["status"])
+    
+    // Verify mock was called
+    assert.Equal(t, 1, mockPubSub.SubscribeCallCount)
 }
 ```
 
@@ -140,9 +165,12 @@ Test thread safety and race conditions.
 **Example: Concurrent State Access**
 ```go
 func TestConcurrentStateAccess(t *testing.T) {
-    service := NewOptimizedCloudStorageService()
-    ctx := context.Background()
+    // Create dependencies with thread-safe implementations
+    deps := CreateProductionDependencies()
+    SetDependencies(deps)
+    defer SetDependencies(nil)
     
+    ctx := context.Background()
     var wg sync.WaitGroup
     errors := make(chan error, 100)
     
@@ -151,7 +179,7 @@ func TestConcurrentStateAccess(t *testing.T) {
         wg.Add(1)
         go func() {
             defer wg.Done()
-            _, err := service.LoadSubscriptionState(ctx)
+            _, err := deps.StorageClient.LoadSubscriptionState(ctx)
             if err != nil {
                 errors <- err
             }
@@ -170,7 +198,7 @@ func TestConcurrentStateAccess(t *testing.T) {
                     },
                 },
             }
-            err := service.SaveSubscriptionState(ctx)
+            err := deps.StorageClient.SaveSubscriptionState(ctx, state)
             if err != nil {
                 errors <- err
             }
@@ -189,42 +217,64 @@ func TestConcurrentStateAccess(t *testing.T) {
 
 ## Mocking Strategies
 
-### Using Mock Storage Client
+### Using Dependency Injection
 
 ```go
-func TestWithMockStorage(t *testing.T) {
-    mockClient := NewMockStorageClient()
+func TestWithDependencyInjection(t *testing.T) {
+    // Create mock dependencies
+    mockStorage := NewMockStorageService()
+    mockPubSub := NewMockPubSubClient()
+    mockGitHub := NewMockGitHubClient()
     
-    // Set up mock behavior
-    mockClient.LoadError = nil
-    mockClient.SaveError = nil
+    deps := &Dependencies{
+        StorageClient: mockStorage,
+        PubSubClient:  mockPubSub,
+        GitHubClient:  mockGitHub,
+    }
     
-    // Inject mock
-    SetStorageClient(mockClient)
-    defer RestoreStorageClient()
+    // Inject test dependencies
+    SetDependencies(deps)
+    defer SetDependencies(nil) // Clean up
     
-    // Test code that uses storage
+    // Configure mock behavior
+    mockStorage.State = &SubscriptionState{
+        Subscriptions: make(map[string]*Subscription),
+    }
+    mockPubSub.SubscribeFunc = func(channelID, callback string) error {
+        return nil
+    }
+    
+    // Test code
     // ...
     
     // Verify mock interactions
-    assert.Equal(t, 1, mockClient.LoadCallCount)
-    assert.Equal(t, 1, mockClient.SaveCallCount)
+    assert.Equal(t, 1, mockStorage.LoadCallCount)
+    assert.Equal(t, 1, mockPubSub.SubscribeCallCount)
 }
 ```
 
-### Using stiface for Cloud Storage Mocks
+### Creating Test Dependencies
 
 ```go
-func TestWithStifaceMock(t *testing.T) {
-    // Create mock client
-    mockClient := &MockStorageClient{
-        state: &SubscriptionState{
-            Subscriptions: make(map[string]*Subscription),
-        },
+func TestWithTestDependencies(t *testing.T) {
+    // Create complete test dependencies
+    deps := CreateTestDependencies()
+    
+    // Customize specific behavior
+    mockPubSub := deps.PubSubClient.(*MockPubSubClient)
+    mockPubSub.SubscribeFunc = func(channelID, callback string) error {
+        if channelID == "invalid" {
+            return errors.New("invalid channel")
+        }
+        return nil
     }
     
-    // Use in tests
-    state, err := mockClient.LoadSubscriptionState(context.Background())
+    // Inject dependencies
+    SetDependencies(deps)
+    defer SetDependencies(nil)
+    
+    // Run tests with isolated dependencies
+    state, err := deps.StorageClient.LoadSubscriptionState(context.Background())
     assert.NoError(t, err)
     assert.NotNil(t, state)
 }
@@ -257,14 +307,17 @@ func getTestSubscriptionState() *SubscriptionState {
 
 ```go
 func TestWithCleanup(t *testing.T) {
-    // Setup
-    originalState := GetTestMode()
-    SetTestMode(true)
+    // Save original dependencies
+    originalDeps := GetDependencies()
+    
+    // Create and inject test dependencies
+    testDeps := CreateTestDependencies()
+    SetDependencies(testDeps)
     
     // Cleanup
     t.Cleanup(func() {
-        SetTestMode(originalState)
-        ClearTestState()
+        SetDependencies(originalDeps)
+        // Clear any test state if needed
     })
     
     // Test code
@@ -280,33 +333,42 @@ func TestWithCleanup(t *testing.T) {
 func TestErrorHandling(t *testing.T) {
     tests := []struct {
         name        string
-        setupMock   func(*MockStorageClient)
-        expectedErr error
+        setupDeps   func(*Dependencies)
+        expectedErr string
     }{
         {
-            name: "load_error",
-            setupMock: func(m *MockStorageClient) {
-                m.LoadError = ErrMockLoadFailure
+            name: "storage_load_error",
+            setupDeps: func(deps *Dependencies) {
+                mock := deps.StorageClient.(*MockStorageService)
+                mock.LoadError = errors.New("storage unavailable")
             },
-            expectedErr: ErrMockLoadFailure,
+            expectedErr: "storage unavailable",
         },
         {
-            name: "save_error",
-            setupMock: func(m *MockStorageClient) {
-                m.SaveError = ErrMockSaveFailure
+            name: "pubsub_subscribe_error",
+            setupDeps: func(deps *Dependencies) {
+                mock := deps.PubSubClient.(*MockPubSubClient)
+                mock.SubscribeFunc = func(channelID, callback string) error {
+                    return errors.New("subscription failed")
+                }
             },
-            expectedErr: ErrMockSaveFailure,
+            expectedErr: "subscription failed",
         },
     }
     
     for _, tt := range tests {
         t.Run(tt.name, func(t *testing.T) {
-            mock := NewMockStorageClient()
-            tt.setupMock(mock)
+            // Create test dependencies
+            deps := CreateTestDependencies()
+            tt.setupDeps(deps)
+            
+            // Inject dependencies
+            SetDependencies(deps)
+            defer SetDependencies(nil)
             
             // Test error handling
-            err := someFunction(mock)
-            assert.Equal(t, tt.expectedErr, err)
+            err := performOperation()
+            assert.Contains(t, err.Error(), tt.expectedErr)
         })
     }
 }
@@ -318,12 +380,16 @@ func TestErrorHandling(t *testing.T) {
 
 ```go
 func BenchmarkSubscriptionLoad(b *testing.B) {
-    service := NewOptimizedCloudStorageService()
+    // Use production dependencies for realistic benchmarks
+    deps := CreateProductionDependencies()
+    SetDependencies(deps)
+    defer SetDependencies(nil)
+    
     ctx := context.Background()
     
     b.ResetTimer()
     for i := 0; i < b.N; i++ {
-        _, _ = service.LoadSubscriptionState(ctx)
+        _, _ = deps.StorageClient.LoadSubscriptionState(ctx)
     }
 }
 ```
@@ -336,15 +402,18 @@ func TestHighLoad(t *testing.T) {
         t.Skip("Skipping load test in short mode")
     }
     
-    service := NewOptimizedCloudStorageService()
-    ctx := context.Background()
+    // Use production dependencies for realistic load testing
+    deps := CreateProductionDependencies()
+    SetDependencies(deps)
+    defer SetDependencies(nil)
     
+    ctx := context.Background()
     start := time.Now()
     requests := 1000
     
     for i := 0; i < requests; i++ {
         go func() {
-            service.LoadSubscriptionState(ctx)
+            deps.StorageClient.LoadSubscriptionState(ctx)
         }()
     }
     
@@ -387,11 +456,12 @@ Each test should be independent:
 
 ```go
 func TestIsolated(t *testing.T) {
-    // Save original state
-    original := GetGlobalState()
-    defer SetGlobalState(original)
+    // Create isolated test dependencies
+    deps := CreateTestDependencies()
+    SetDependencies(deps)
+    defer SetDependencies(nil)
     
-    // Test logic
+    // Test logic runs with isolated dependencies
 }
 ```
 
@@ -469,6 +539,7 @@ go tool cover -html=coverage.out
 
 ## Next Steps
 
+- Review [Dependency Injection Architecture](../architecture/dependency-injection.md)
 - Review [Contributing Guide](./contributing.md)
 - Learn about [Deployment](../deployment/cloud-functions.md)
 - Understand [Monitoring](../operations/monitoring.md)
