@@ -2,7 +2,7 @@
 
 ## Overview
 
-The project maintains **82.9% test coverage** with comprehensive unit, integration, and load testing strategies using dependency injection for clean, isolated tests.
+The project maintains **82.9% test coverage** for the function and **comprehensive CLI test coverage** with unit, integration, and load testing strategies using dependency injection for clean, isolated tests.
 
 ## Test Structure
 
@@ -11,7 +11,14 @@ function/
 ├── *_test.go           # Unit tests for each component
 ├── testutil/
 │   └── common.go      # Shared test utilities
-└── coverage.out       # Coverage reports
+└── coverage.out       # Function coverage reports
+cli/
+├── client/
+│   └── client_test.go # HTTP client tests
+├── commands/
+│   └── *_test.go      # Command handler tests
+cmd/youtube-webhook/
+└── main_test.go       # CLI integration tests
 ```
 
 ## Running Tests
@@ -19,17 +26,23 @@ function/
 ### Basic Commands
 
 ```bash
-# Run all tests
+# Run function tests only
 make test
 
-# Run with coverage report
-make test-coverage
+# Run CLI tests only
+make test-cli
 
-# Run with race detection
-make test-race
+# Run all tests (function + CLI)
+make test-all
+
+# Run with coverage report
+make test-coverage      # Function coverage
+make test-coverage-cli  # CLI coverage
+make test-coverage-all  # Combined coverage
 
 # Run specific test file
 go test -v ./function -run TestFileName
+go test -v ./cli/client -run TestClient_Subscribe
 
 # Run specific test case
 go test -v ./function -run TestSubscribeToChannel/Success
@@ -38,22 +51,35 @@ go test -v ./function -run TestSubscribeToChannel/Success
 ### Coverage Analysis
 
 ```bash
-# Generate coverage report
+# Generate function coverage report
 make test-coverage
 
+# Generate CLI coverage report
+make test-coverage-cli
+
+# Generate combined coverage reports
+make test-coverage-all
+
 # View coverage in browser
-go tool cover -html=function/coverage.out
+go tool cover -html=function/coverage.out     # Function coverage
+go tool cover -html=cli-coverage.out          # CLI coverage
 
 # Check coverage percentage
 go test -cover ./function
+go test -cover ./cli/...
 ```
 
 Current coverage targets:
-- Minimum: 80%
-- Current: 82.9%
-- Goal: 85%
+- **Function**: 82.9% (Minimum: 80%, Goal: 85%)
+- **CLI Client**: 66.7%
+- **CLI Commands**: 98.4%
+- **Combined**: Comprehensive test coverage across all components
 
 ## Test Categories
+
+The project includes tests for both the Cloud Function and CLI tool components.
+
+### Function Tests
 
 ### Unit Tests
 
@@ -212,6 +238,109 @@ func TestConcurrentStateAccess(t *testing.T) {
     for err := range errors {
         t.Errorf("Concurrent access error: %v", err)
     }
+}
+```
+
+### CLI Tests
+
+#### CLI Client Tests
+Test HTTP client interactions with the webhook service API.
+
+```go
+func TestClient_Subscribe_Success(t *testing.T) {
+    // Create test server
+    server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        if r.Method != "POST" {
+            t.Errorf("Expected POST method, got %s", r.Method)
+        }
+        
+        channelID := r.URL.Query().Get("channel_id")
+        if channelID != "UCXuqSBlHAE6Xw-yeJA0Tunw" {
+            t.Errorf("Expected specific channel ID, got %s", channelID)
+        }
+        
+        w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(webhook.APIResponse{
+            Status:    "success",
+            Message:   "Subscribed successfully",
+            ExpiresAt: "2024-01-22T15:30:00Z",
+        })
+    }))
+    defer server.Close()
+    
+    client := NewClient(server.URL, 30*time.Second)
+    resp, err := client.Subscribe("UCXuqSBlHAE6Xw-yeJA0Tunw")
+    
+    assert.NoError(t, err)
+    assert.Equal(t, "success", resp.Status)
+}
+```
+
+#### CLI Command Tests
+Test command implementations and user interactions.
+
+```go
+func TestSubscribe_Success(t *testing.T) {
+    server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(webhook.APIResponse{
+            Status:    "success",
+            Message:   "Subscribed successfully",
+            ExpiresAt: "2024-01-22T15:30:00Z",
+        })
+    }))
+    defer server.Close()
+    
+    config := SubscribeConfig{
+        BaseURL:   server.URL,
+        ChannelID: "UCXuqSBlHAE6Xw-yeJA0Tunw",
+        Timeout:   30 * time.Second,
+    }
+    
+    err := Subscribe(config)
+    assert.NoError(t, err)
+}
+```
+
+#### CLI Integration Tests
+Test the complete CLI binary with real subcommand execution.
+
+```go
+func TestIntegration_CompleteWorkflow(t *testing.T) {
+    if testing.Short() {
+        t.Skip("Skipping integration test in short mode")
+    }
+    
+    // Build CLI binary for testing
+    binaryPath := buildCLIBinary(t)
+    defer os.Remove(binaryPath)
+    
+    // Setup test server with subscription tracking
+    subscriptions := make(map[string]webhook.SubscriptionInfo)
+    server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        // Handle subscribe, list, unsubscribe operations
+        // Maintain state across requests
+    }))
+    defer server.Close()
+    
+    // Test complete workflow: subscribe → list → unsubscribe
+    testChannelID := "UCXuqSBlHAE6Xw-yeJA0Tunw"
+    
+    // 1. Subscribe
+    cmd := exec.Command(binaryPath, "subscribe", "-url", server.URL, "-channel", testChannelID)
+    output, err := cmd.CombinedOutput()
+    assert.NoError(t, err, "Subscribe command should succeed")
+    
+    // 2. Verify subscription in list
+    cmd = exec.Command(binaryPath, "list", "-url", server.URL)
+    output, err = cmd.CombinedOutput()
+    assert.NoError(t, err)
+    assert.Contains(t, string(output), testChannelID)
+    
+    // 3. Unsubscribe
+    cmd = exec.Command(binaryPath, "unsubscribe", "-url", server.URL, "-channel", testChannelID)
+    output, err = cmd.CombinedOutput()
+    assert.NoError(t, err)
 }
 ```
 
@@ -499,8 +628,8 @@ Tests run automatically on:
 - Scheduled daily runs
 
 CI checks:
-- All tests pass
-- Coverage >80%
+- All function tests pass (82.9% coverage)
+- All CLI tests pass (comprehensive coverage)
 - No race conditions
 - Linting passes
 - Security scan clean
@@ -540,6 +669,7 @@ go tool cover -html=coverage.out
 ## Next Steps
 
 - Review [Dependency Injection Architecture](../architecture/dependency-injection.md)
+- Review [CLI Documentation](../../cli/README.md)
 - Review [Contributing Guide](./contributing.md)
 - Learn about [Deployment](../deployment/cloud-functions.md)
 - Understand [Monitoring](../operations/monitoring.md)

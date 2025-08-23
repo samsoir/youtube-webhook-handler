@@ -1,6 +1,6 @@
 # Documentation
 
-Welcome to the YouTube Webhook Service documentation. This comprehensive guide covers all aspects of the system.
+Welcome to the YouTube Webhook Service documentation. This comprehensive guide covers all aspects of the serverless system and its companion CLI tool.
 
 ## 📚 Documentation Structure
 
@@ -10,9 +10,10 @@ Welcome to the YouTube Webhook Service documentation. This comprehensive guide c
 - [Webhook Processing](./architecture/webhook-processing.md) - Notification handling
 
 ### [API](./api/)
-- [Endpoints](./api/endpoints.md) - Complete API reference
+- [Endpoints](./api/endpoints.md) - Complete HTTP API reference
 - [Webhooks](./api/webhooks.md) - Webhook specifications
 - [PubSubHubbub](./api/pubsubhubbub.md) - Protocol details
+- [CLI Tool](../cli/README.md) - Command-line interface documentation
 
 ### [Development](./development/)
 - [Getting Started](./development/getting-started.md) - Setup and configuration
@@ -35,11 +36,13 @@ Welcome to the YouTube Webhook Service documentation. This comprehensive guide c
 1. Start with [Getting Started](./development/getting-started.md)
 2. Review [Architecture Overview](./architecture/overview.md)
 3. Explore [API Endpoints](./api/endpoints.md)
+4. Try the [CLI Tool](../cli/README.md)
 
 ### For Developers
 1. Read [Development Guide](./development/getting-started.md)
-2. Understand [Testing](./development/testing.md)
-3. Follow [Contributing Guidelines](./development/contributing.md)
+2. Understand [Testing](./development/testing.md) (Function + CLI)
+3. Build the [CLI Tool](../cli/README.md)
+4. Follow [Contributing Guidelines](./development/contributing.md)
 
 ### For Operations
 1. Deploy with [Cloud Functions Guide](./deployment/cloud-functions.md)
@@ -49,8 +52,10 @@ Welcome to the YouTube Webhook Service documentation. This comprehensive guide c
 ## 📊 Project Status
 
 - **Current Version**: 1.0.0
-- **Test Coverage**: 82.4%
+- **Function Test Coverage**: 82.9%
+- **CLI Test Coverage**: Comprehensive (66.7-98.4%)
 - **Production Ready**: ✅
+- **CLI Tool**: ✅ Complete
 - **Phase 3 Complete**: Auto-renewal system implemented
 - **Phase 4 Pending**: Monitoring and alerting
 

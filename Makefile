@@ -6,6 +6,7 @@ FUNCTION_DIR := function
 TERRAFORM_DIR := terraform
 PROJECT_NAME := youtube-webhook
 BINARY_NAME := webhook
+CLI_BINARY := youtube-webhook
 
 # Colors for output
 RED := \033[0;31m
@@ -17,7 +18,7 @@ NC := \033[0m # No Color
 # Default target
 .DEFAULT_GOAL := help
 
-.PHONY: help setup test test-verbose test-coverage clean lint fmt vet build deploy-function terraform-init terraform-plan terraform-apply terraform-destroy docker-build docker-run
+.PHONY: help setup test test-cli test-all test-verbose test-coverage test-coverage-cli test-coverage-all clean lint fmt vet build deploy-function terraform-init terraform-plan terraform-apply terraform-destroy docker-build docker-run
 
 help: ## Show this help message
 	@echo "$(BLUE)YouTube Webhook Project$(NC)"
@@ -40,17 +41,35 @@ setup: ## Setup development environment and download dependencies
 test: ## Run all tests
 	@echo "$(YELLOW)Running tests...$(NC)"
 	@cd $(FUNCTION_DIR) && go test -v ./...
-	@echo "$(GREEN)✓ Tests completed$(NC)"
+	@echo "$(GREEN)✓ Function tests completed$(NC)"
+
+test-cli: ## Run CLI tests
+	@echo "$(YELLOW)Running CLI tests...$(NC)"
+	@go test -v ./cli/...
+	@go test -v ./cmd/youtube-webhook/...
+	@echo "$(GREEN)✓ CLI tests completed$(NC)"
+
+test-all: test test-cli ## Run all tests (function and CLI)
+	@echo "$(GREEN)✓ All tests completed$(NC)"
 
 test-verbose: ## Run tests with verbose output
 	@echo "$(YELLOW)Running tests with verbose output...$(NC)"
 	@cd $(FUNCTION_DIR) && go test -v -race ./...
 
 test-coverage: ## Run tests with coverage report
-	@echo "$(YELLOW)Running tests with coverage...$(NC)"
+	@echo "$(YELLOW)Running function tests with coverage...$(NC)"
 	@cd $(FUNCTION_DIR) && go test -v -race -coverprofile=coverage.out ./...
 	@cd $(FUNCTION_DIR) && go tool cover -html=coverage.out -o coverage.html
-	@echo "$(GREEN)✓ Coverage report generated: $(FUNCTION_DIR)/coverage.html$(NC)"
+	@echo "$(GREEN)✓ Function coverage report generated: $(FUNCTION_DIR)/coverage.html$(NC)"
+
+test-coverage-cli: ## Run CLI tests with coverage report
+	@echo "$(YELLOW)Running CLI tests with coverage...$(NC)"
+	@go test -v -race -coverprofile=cli-coverage.out ./cli/... ./cmd/youtube-webhook/...
+	@go tool cover -html=cli-coverage.out -o cli-coverage.html
+	@echo "$(GREEN)✓ CLI coverage report generated: cli-coverage.html$(NC)"
+
+test-coverage-all: test-coverage test-coverage-cli ## Run all tests with coverage reports
+	@echo "$(GREEN)✓ All coverage reports generated$(NC)"
 
 test-watch: ## Watch for changes and run tests automatically (requires entr)
 	@echo "$(YELLOW)Watching for changes... (Press Ctrl+C to stop)$(NC)"
@@ -89,6 +108,16 @@ build-linux: ## Build for Linux (Cloud Functions target)
 	@echo "$(YELLOW)Building for Linux...$(NC)"
 	@cd $(FUNCTION_DIR) && GOOS=linux GOARCH=amd64 go build -o $(BINARY_NAME)-linux .
 	@echo "$(GREEN)✓ Linux binary built: $(FUNCTION_DIR)/$(BINARY_NAME)-linux$(NC)"
+
+build-cli: ## Build the CLI tool
+	@echo "$(YELLOW)Building CLI tool...$(NC)"
+	@go build -o $(CLI_BINARY) ./cmd/youtube-webhook
+	@echo "$(GREEN)✓ CLI tool built: $(CLI_BINARY)$(NC)"
+
+install-cli: build-cli ## Build and install the CLI tool to GOPATH/bin
+	@echo "$(YELLOW)Installing CLI tool...$(NC)"
+	@go install ./cmd/youtube-webhook
+	@echo "$(GREEN)✓ CLI tool installed to $$GOPATH/bin/youtube-webhook$(NC)"
 
 ## Local Development Commands
 
@@ -205,7 +234,7 @@ dev-setup: setup terraform-init ## Complete development setup
 dev-test: test vet fmt ## Quick development test cycle
 	@echo "$(GREEN)✓ Development checks passed$(NC)"
 
-pre-commit: check test-coverage security-scan ## Complete pre-commit checks
+pre-commit: check test-coverage-all security-scan ## Complete pre-commit checks
 	@echo "$(GREEN)✓ All pre-commit checks passed$(NC)"
 
 pre-deploy: pre-commit terraform-validate ## Complete pre-deployment checks
@@ -216,6 +245,8 @@ pre-deploy: pre-commit terraform-validate ## Complete pre-deployment checks
 ci-test: ## CI-friendly test command
 	@cd $(FUNCTION_DIR) && go test -v -race -coverprofile=coverage.out ./...
 	@cd $(FUNCTION_DIR) && go tool cover -func=coverage.out
+	@go test -v -race -coverprofile=cli-coverage.out ./cli/... ./cmd/youtube-webhook/...
+	@go tool cover -func=cli-coverage.out
 
 ci-build: ## CI-friendly build command
 	@cd $(FUNCTION_DIR) && go build -v ./...

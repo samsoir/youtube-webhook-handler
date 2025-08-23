@@ -18,18 +18,16 @@ var (
 // GetDependencies returns the global dependencies instance.
 // Creates production dependencies if none exist.
 func GetDependencies() *Dependencies {
-	dependenciesMutex.RLock()
-	if globalDependencies != nil {
-		defer dependenciesMutex.RUnlock()
-		return globalDependencies
-	}
-	dependenciesMutex.RUnlock()
-
-	// Create dependencies if they don't exist
+	// Use sync.Once to ensure thread-safe initialization
 	dependenciesOnce.Do(func() {
-		globalDependencies = CreateProductionDependencies()
+		if globalDependencies == nil {
+			globalDependencies = CreateProductionDependencies()
+		}
 	})
 
+	// Now safe to read without race condition
+	dependenciesMutex.RLock()
+	defer dependenciesMutex.RUnlock()
 	return globalDependencies
 }
 
@@ -38,6 +36,8 @@ func SetDependencies(deps *Dependencies) {
 	dependenciesMutex.Lock()
 	defer dependenciesMutex.Unlock()
 	globalDependencies = deps
+	// Reset the Once so it can be used again if needed
+	dependenciesOnce = sync.Once{}
 }
 
 // CreateProductionDependencies creates dependencies for production use.

@@ -2,10 +2,11 @@
 
 ## System Architecture
 
-The YouTube Webhook Service is a serverless application built on Google Cloud Functions that processes YouTube PubSubHubbub notifications and triggers GitHub Actions workflows.
+The YouTube Webhook Service is a serverless application built on Google Cloud Functions with a companion CLI tool that processes YouTube PubSubHubbub notifications and triggers GitHub Actions workflows.
 
 ```
-YouTube → PubSubHubbub → Cloud Function → GitHub API → Actions Workflow → Website Update
+┌─ YouTube → PubSubHubbub → Cloud Function → GitHub API → Actions Workflow → Website Update
+└─ CLI Tool ────────────→ Cloud Function ─┘
 ```
 
 ## Core Components
@@ -14,18 +15,25 @@ YouTube → PubSubHubbub → Cloud Function → GitHub API → Actions Workflow 
 - Entry point for all HTTP requests
 - Routes requests to appropriate handlers
 - Manages PubSubHubbub verification challenges
+- Provides REST API for programmatic access
 
-### 2. Subscription Management
+### 2. CLI Tool (`cli/`)
+- Command-line interface for subscription management
+- HTTP client for webhook service API
+- User-friendly commands for common operations
+- Environment variable and flag-based configuration
+
+### 3. Subscription Management
 - Manages YouTube channel subscriptions via PubSubHubbub
 - Persists subscription state in Cloud Storage
 - Handles auto-renewal via Cloud Scheduler
 
-### 3. Notification Processing
+### 4. Notification Processing
 - Processes incoming YouTube feed notifications
 - Filters for new video publications
 - Triggers GitHub workflow dispatches
 
-### 4. Storage Layer
+### 5. Storage Layer
 - Cloud Storage for persistent state
 - Optimized with caching and connection pooling
 - Thread-safe concurrent access
@@ -44,6 +52,9 @@ The codebase follows Clean Architecture principles with clear separation of conc
 │   ├── NotificationService
 │   ├── StorageService
 │   └── GitHubClient
+├── Interface Layer
+│   ├── HTTP API (webhook.go)
+│   └── CLI Tool (cli/)
 └── Infrastructure Layer
     ├── Cloud Storage
     ├── PubSubHubbub
@@ -56,6 +67,8 @@ Each service has a single responsibility:
 - `StorageService`: Manage persistent state
 - `GitHubClient`: Interact with GitHub API
 - `VideoProcessor`: Parse and validate video data
+- `CLI Client`: HTTP client for API communication
+- `CLI Commands`: User-facing command implementations
 
 ### Event-Driven Architecture
 The system is event-driven with multiple trigger points:
@@ -142,3 +155,5 @@ All infrastructure is defined in Terraform:
 - Webhook signature verification
 - Admin dashboard for management
 - Batch subscription operations
+- CLI auto-completion and shell integration
+- CLI configuration file support

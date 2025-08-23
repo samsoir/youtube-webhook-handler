@@ -1,6 +1,6 @@
 # YouTube Webhook Service
 
-A serverless Google Cloud Function that processes YouTube PubSubHubbub webhook notifications and triggers GitHub Actions workflows when new videos are published.
+A serverless Google Cloud Function with CLI tool that processes YouTube PubSubHubbub webhook notifications and triggers GitHub Actions workflows when new videos are published.
 
 [![Test Coverage](https://img.shields.io/badge/coverage-82.9%25-brightgreen)](docs/development/testing.md)
 [![Go](https://img.shields.io/badge/go-1.23-blue)](https://golang.org/)
@@ -8,6 +8,7 @@ A serverless Google Cloud Function that processes YouTube PubSubHubbub webhook n
 
 ## Quick Start
 
+### Cloud Function
 ```bash
 # Clone and setup
 git clone https://github.com/samsoir/youtube-webhook-handler.git
@@ -25,6 +26,24 @@ make run-local
 make test
 ```
 
+### CLI Tool
+```bash
+# Build and install CLI
+make install-cli
+
+# Configure service URL
+export YOUTUBE_WEBHOOK_URL=https://your-function.run.app
+
+# Subscribe to a channel
+youtube-webhook subscribe -channel UCXuqSBlHAE6Xw-yeJA0Tunw
+
+# List subscriptions
+youtube-webhook list
+
+# Get help
+youtube-webhook help
+```
+
 ## Features
 
 - 🔔 **Real-time Notifications** - Instant YouTube video notifications via PubSubHubbub
@@ -33,6 +52,7 @@ make test
 - 🛡️ **Production Ready** - 82.9% test coverage with dependency injection architecture
 - 📊 **Observable** - Structured logging and monitoring
 - 🏗️ **Infrastructure as Code** - Complete Terraform configuration
+- ⚡ **CLI Tool** - Command-line interface for subscription management
 
 ## Documentation
 
@@ -66,6 +86,11 @@ make test
 ```
 .
 ├── function/           # Cloud Function source code
+├── cli/               # CLI tool source code
+│   ├── client/       # HTTP client for API
+│   └── commands/     # Command implementations
+├── cmd/              # CLI entry points
+│   └── youtube-webhook/ # Main CLI application
 ├── terraform/         # Infrastructure configuration
 ├── docs/             # Comprehensive documentation
 │   ├── architecture/ # System design docs
@@ -79,14 +104,33 @@ make test
 
 ## Key Commands
 
+### Development
 ```bash
 make help           # Show all available commands
-make test          # Run tests
-make test-coverage # Run tests with coverage
+make test          # Run function tests
+make test-cli      # Run CLI tests
+make test-all      # Run all tests
+make test-coverage # Run function tests with coverage
 make lint          # Run linters
+```
+
+### Cloud Function
+```bash
 make run-local     # Start local server
 make build-linux   # Build for Cloud Functions
-make terraform-plan # Preview infrastructure changes
+make deploy-function # Deploy to Google Cloud
+```
+
+### CLI Tool
+```bash
+make build-cli     # Build CLI binary
+make install-cli   # Build and install CLI
+```
+
+### Infrastructure
+```bash
+make terraform-plan  # Preview infrastructure changes
+make terraform-apply # Apply infrastructure changes
 ```
 
 ## Requirements
@@ -112,6 +156,7 @@ See [Getting Started](docs/development/getting-started.md) for complete setup in
 
 ## API Overview
 
+### HTTP API
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/` | GET | PubSubHubbub verification |
@@ -121,7 +166,16 @@ See [Getting Started](docs/development/getting-started.md) for complete setup in
 | `/subscriptions` | GET | List subscriptions |
 | `/renew` | POST | Renew subscriptions |
 
-See [API Documentation](docs/api/endpoints.md) for complete details.
+### CLI Commands
+| Command | Description |
+|---------|-----------|
+| `subscribe -channel <ID>` | Subscribe to a YouTube channel |
+| `unsubscribe -channel <ID>` | Unsubscribe from a channel |
+| `list` | List all subscriptions |
+| `renew` | Trigger renewal of expiring subscriptions |
+| `help` | Show help information |
+
+See [API Documentation](docs/api/endpoints.md) and [CLI README](cli/README.md) for complete details.
 
 ## Contributing
 

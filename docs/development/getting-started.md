@@ -105,9 +105,24 @@ environment   = "dev"
 region        = "us-central1"
 ```
 
+### 5. Build CLI Tool (Optional)
+
+If you want to use the CLI tool for subscription management:
+
+```bash
+# Build and install CLI to GOPATH/bin
+make install-cli
+
+# Or just build locally
+make build-cli
+
+# Verify installation
+youtube-webhook help
+```
+
 ## Local Development
 
-### Running Locally
+### Running the Cloud Function Locally
 
 ```bash
 # Start the local server
@@ -119,6 +134,7 @@ make run-local
 
 ### Testing the Local Server
 
+#### Using cURL (HTTP API)
 ```bash
 # Test verification challenge
 curl "http://localhost:8080?hub.challenge=test123&hub.mode=subscribe&hub.topic=test"
@@ -130,20 +146,44 @@ curl -X POST "http://localhost:8080/subscribe?channel_id=UCXuqSBlHAE6Xw-yeJA0Tun
 curl "http://localhost:8080/subscriptions"
 ```
 
+#### Using CLI Tool
+```bash
+# Configure CLI to use local server
+export YOUTUBE_WEBHOOK_URL=http://localhost:8080
+
+# Subscribe to a channel
+youtube-webhook subscribe -channel UCXuqSBlHAE6Xw-yeJA0Tunw
+
+# List all subscriptions
+youtube-webhook list
+
+# Unsubscribe from a channel
+youtube-webhook unsubscribe -channel UCXuqSBlHAE6Xw-yeJA0Tunw
+
+# Trigger renewal
+youtube-webhook renew
+```
+
 ### Running Tests
 
 ```bash
-# Run all tests
+# Run function tests only
 make test
 
-# Run with coverage
-make test-coverage
+# Run CLI tests only
+make test-cli
 
-# Run with race detection
-make test-race
+# Run all tests (function + CLI)
+make test-all
+
+# Run with coverage
+make test-coverage      # Function coverage
+make test-coverage-cli  # CLI coverage
+make test-coverage-all  # Combined coverage
 
 # Run specific test
 go test -v ./function -run TestSubscribeToChannel
+go test -v ./cli/client -run TestClient_Subscribe
 ```
 
 ### Code Quality Checks
@@ -175,6 +215,20 @@ make pre-deploy
 │   ├── notification_service.go # Notification processing
 │   ├── github_client.go  # GitHub API client
 │   └── *_test.go         # Test files
+├── cli/                  # CLI tool source code
+│   ├── client/          # HTTP client for API
+│   │   ├── client.go    # API client implementation
+│   │   └── client_test.go # Client tests
+│   ├── commands/        # Command implementations
+│   │   ├── subscribe.go # Subscribe/unsubscribe commands
+│   │   ├── list.go      # List command
+│   │   ├── renew.go     # Renew command
+│   │   └── *_test.go    # Command tests
+│   └── README.md        # CLI documentation
+├── cmd/                 # CLI entry points
+│   └── youtube-webhook/ # Main CLI application
+│       ├── main.go      # CLI main entry point
+│       └── main_test.go # Integration tests
 ├── terraform/            # Infrastructure as Code
 │   ├── main.tf          # Main configuration
 │   ├── variables.tf     # Variable definitions
@@ -247,7 +301,8 @@ Then create a pull request on GitHub.
 2. Implement business logic in appropriate service
 3. Add tests for the new functionality
 4. Update API documentation
-5. Test locally before pushing
+5. Add corresponding CLI command if needed
+6. Test both HTTP API and CLI locally before pushing
 
 ### Modifying Storage Schema
 
@@ -316,6 +371,7 @@ t.Logf("Debug: %v", variable)
 ## Next Steps
 
 - Read the [Architecture Overview](../architecture/overview.md)
-- Review [API Documentation](../api/endpoints.md)
+- Review [API Documentation](../api/endpoints.md) and [CLI Documentation](../../cli/README.md)
 - Learn about [Testing](./testing.md)
 - Understand [Deployment](../deployment/cloud-functions.md)
+- Try the [CLI Tool](../../cli/README.md) for subscription management
