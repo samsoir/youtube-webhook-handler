@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TestNotificationWithDeps_EdgeCases tests various edge cases for the notification handler using dependency injection
-func TestNotificationWithDeps_EdgeCases(t *testing.T) {
+// TestNotification_EdgeCases tests various edge cases for the notification handler using dependency injection
+func TestNotification_EdgeCases(t *testing.T) {
 	t.Run("InvalidXMLStructure", func(t *testing.T) {
 		deps := CreateTestDependencies()
 
@@ -32,7 +32,7 @@ func TestNotificationWithDeps_EdgeCases(t *testing.T) {
 		req := httptest.NewRequest("POST", "/", strings.NewReader(xmlPayload))
 		w := httptest.NewRecorder()
 
-		handler := handleNotificationWithDeps(deps)
+		handler := handleNotification(deps)
 		handler(w, req)
 
 		// Should handle invalid dates gracefully and skip processing
@@ -66,7 +66,7 @@ func TestNotificationWithDeps_EdgeCases(t *testing.T) {
 		req := httptest.NewRequest("POST", "/", strings.NewReader(xmlPayload))
 		w := httptest.NewRecorder()
 
-		handler := handleNotificationWithDeps(deps)
+		handler := handleNotification(deps)
 		handler(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -99,7 +99,7 @@ func TestNotificationWithDeps_EdgeCases(t *testing.T) {
 		req := httptest.NewRequest("POST", "/", strings.NewReader(xmlPayload))
 		w := httptest.NewRecorder()
 
-		handler := handleNotificationWithDeps(deps)
+		handler := handleNotification(deps)
 		handler(w, req)
 
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
@@ -114,7 +114,7 @@ func TestNotificationWithDeps_EdgeCases(t *testing.T) {
 		req := httptest.NewRequest("POST", "/", strings.NewReader(invalidXML))
 		w := httptest.NewRecorder()
 
-		handler := handleNotificationWithDeps(deps)
+		handler := handleNotification(deps)
 		handler(w, req)
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -132,7 +132,7 @@ func TestNotificationWithDeps_EdgeCases(t *testing.T) {
 		req := httptest.NewRequest("POST", "/", strings.NewReader(emptyXML))
 		w := httptest.NewRecorder()
 
-		handler := handleNotificationWithDeps(deps)
+		handler := handleNotification(deps)
 		handler(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -161,7 +161,7 @@ func TestNotificationWithDeps_EdgeCases(t *testing.T) {
 		req := httptest.NewRequest("POST", "/", strings.NewReader(xmlPayload))
 		w := httptest.NewRecorder()
 
-		handler := handleNotificationWithDeps(deps)
+		handler := handleNotification(deps)
 		handler(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -190,7 +190,7 @@ func TestNotificationWithDeps_EdgeCases(t *testing.T) {
 		req := httptest.NewRequest("POST", "/", strings.NewReader(xmlPayload))
 		w := httptest.NewRecorder()
 
-		handler := handleNotificationWithDeps(deps)
+		handler := handleNotification(deps)
 		handler(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -210,7 +210,7 @@ func TestNotificationWithDeps_EdgeCases(t *testing.T) {
 		req := httptest.NewRequest("POST", "/", &failingReader{})
 		w := httptest.NewRecorder()
 
-		handler := handleNotificationWithDeps(deps)
+		handler := handleNotification(deps)
 		handler(w, req)
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -223,7 +223,7 @@ func TestNotificationWithDeps_EdgeCases(t *testing.T) {
 		req := httptest.NewRequest("POST", "/", strings.NewReader(""))
 		w := httptest.NewRecorder()
 
-		handler := handleNotificationWithDeps(deps)
+		handler := handleNotification(deps)
 		handler(w, req)
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -231,8 +231,8 @@ func TestNotificationWithDeps_EdgeCases(t *testing.T) {
 	})
 }
 
-// TestNotificationWithDeps_XMLParsingEdgeCases tests edge cases in XML parsing
-func TestNotificationWithDeps_XMLParsingEdgeCases(t *testing.T) {
+// TestNotification_XMLParsingEdgeCases tests edge cases in XML parsing
+func TestNotification_XMLParsingEdgeCases(t *testing.T) {
 	t.Run("MalformedXMLWithValidStructure", func(t *testing.T) {
 		deps := CreateTestDependencies()
 
@@ -251,7 +251,7 @@ func TestNotificationWithDeps_XMLParsingEdgeCases(t *testing.T) {
 		req := httptest.NewRequest("POST", "/", strings.NewReader(xmlPayload))
 		w := httptest.NewRecorder()
 
-		handler := handleNotificationWithDeps(deps)
+		handler := handleNotification(deps)
 		handler(w, req)
 
 		// Should handle gracefully and skip due to empty fields
@@ -277,7 +277,7 @@ func TestNotificationWithDeps_XMLParsingEdgeCases(t *testing.T) {
 		req := httptest.NewRequest("POST", "/", strings.NewReader(xmlPayload))
 		w := httptest.NewRecorder()
 
-		handler := handleNotificationWithDeps(deps)
+		handler := handleNotification(deps)
 		handler(w, req)
 
 		// Go's XML parser may reject unsupported encoding
@@ -303,7 +303,7 @@ func TestNotificationWithDeps_XMLParsingEdgeCases(t *testing.T) {
 		req := httptest.NewRequest("POST", "/", strings.NewReader(xmlPayload))
 		w := httptest.NewRecorder()
 
-		handler := handleNotificationWithDeps(deps)
+		handler := handleNotification(deps)
 		handler(w, req)
 
 		// Without proper yt namespace, entry exists but video processing succeeds
@@ -313,8 +313,8 @@ func TestNotificationWithDeps_XMLParsingEdgeCases(t *testing.T) {
 	})
 }
 
-// TestNotificationWithDeps_TimestampEdgeCases tests edge cases in timestamp handling
-func TestNotificationWithDeps_TimestampEdgeCases(t *testing.T) {
+// TestNotification_TimestampEdgeCases tests edge cases in timestamp handling
+func TestNotification_TimestampEdgeCases(t *testing.T) {
 	testCases := []struct {
 		name      string
 		published string
@@ -365,7 +365,7 @@ func TestNotificationWithDeps_TimestampEdgeCases(t *testing.T) {
 			req := httptest.NewRequest("POST", "/", strings.NewReader(xmlPayload))
 			w := httptest.NewRecorder()
 
-			handler := handleNotificationWithDeps(deps)
+			handler := handleNotification(deps)
 			handler(w, req)
 
 			assert.Equal(t, http.StatusOK, w.Code)
@@ -374,8 +374,8 @@ func TestNotificationWithDeps_TimestampEdgeCases(t *testing.T) {
 	}
 }
 
-// TestNotificationWithDeps_ConcurrentRequests tests thread safety
-func TestNotificationWithDeps_ConcurrentRequests(t *testing.T) {
+// TestNotification_ConcurrentRequests tests thread safety
+func TestNotification_ConcurrentRequests(t *testing.T) {
 	deps := CreateTestDependencies()
 	const numRequests = 10
 
@@ -401,7 +401,7 @@ func TestNotificationWithDeps_ConcurrentRequests(t *testing.T) {
 			req := httptest.NewRequest("POST", "/", strings.NewReader(xmlPayload))
 			w := httptest.NewRecorder()
 
-			handler := handleNotificationWithDeps(deps)
+			handler := handleNotification(deps)
 			handler(w, req)
 
 			results[index] = w.Code

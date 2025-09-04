@@ -10,9 +10,8 @@ import (
 	"time"
 )
 
-// handleSubscribeWithDeps handles POST /subscribe requests using dependency injection.
-// This is the refactored version that doesn't rely on global testMode.
-func handleSubscribeWithDeps(deps *Dependencies) http.HandlerFunc {
+// handleSubscribe handles POST /subscribe requests using dependency injection.
+func handleSubscribe(deps *Dependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 
@@ -99,8 +98,8 @@ func handleSubscribeWithDeps(deps *Dependencies) http.HandlerFunc {
 	}
 }
 
-// handleUnsubscribeWithDeps handles DELETE /unsubscribe requests using dependency injection.
-func handleUnsubscribeWithDeps(deps *Dependencies) http.HandlerFunc {
+// handleUnsubscribe handles DELETE /unsubscribe requests using dependency injection.
+func handleUnsubscribe(deps *Dependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 
@@ -154,8 +153,8 @@ func handleUnsubscribeWithDeps(deps *Dependencies) http.HandlerFunc {
 
 // handleUnsubscribe is a compatibility wrapper that uses the refactored function.
 
-// handleRenewSubscriptionsWithDeps handles POST /renew requests using dependency injection.
-func handleRenewSubscriptionsWithDeps(deps *Dependencies) http.HandlerFunc {
+// handleRenewSubscriptions handles POST /renew requests using dependency injection.
+func handleRenewSubscriptions(deps *Dependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 
@@ -179,7 +178,7 @@ func handleRenewSubscriptionsWithDeps(deps *Dependencies) http.HandlerFunc {
 
 			// Check if subscription needs renewal
 			if timeUntilExpiry <= renewalThreshold {
-				result := renewSubscriptionWithDeps(ctx, channelID, subscription, state, deps)
+				result := renewSubscription(ctx, channelID, subscription, state, deps)
 				renewalResults = append(renewalResults, result)
 
 				if result.Success {
@@ -215,8 +214,8 @@ func handleRenewSubscriptionsWithDeps(deps *Dependencies) http.HandlerFunc {
 	}
 }
 
-// renewSubscriptionWithDeps attempts to renew a single subscription using dependency injection.
-func renewSubscriptionWithDeps(ctx context.Context, channelID string, subscription *Subscription, state *SubscriptionState, deps *Dependencies) RenewalResult {
+// renewSubscription attempts to renew a single subscription using dependency injection.
+func renewSubscription(ctx context.Context, channelID string, subscription *Subscription, state *SubscriptionState, deps *Dependencies) RenewalResult {
 	maxAttempts := getMaxRenewalAttempts()
 
 	// Check if we've exceeded max attempts
@@ -256,8 +255,8 @@ func renewSubscriptionWithDeps(ctx context.Context, channelID string, subscripti
 
 // handleRenewSubscriptions is a compatibility wrapper that uses the refactored function.
 
-// handleNotificationWithDeps handles POST / requests (YouTube notifications) using dependency injection.
-func handleNotificationWithDeps(deps *Dependencies) http.HandlerFunc {
+// handleNotification handles POST / requests (YouTube notifications) using dependency injection.
+func handleNotification(deps *Dependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Create notification service with injected dependencies
 		notificationService := &NotificationService{

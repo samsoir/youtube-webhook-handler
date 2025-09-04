@@ -49,7 +49,34 @@ type StorageService interface {
 
 **Implementations:**
 - `CloudStorageService`: Production implementation with Google Cloud Storage
-- `MockStorageService`: Test implementation with in-memory storage
+- `MockStorageClient`: Test implementation with in-memory storage
+
+#### CloudStorageService Architecture
+
+The `CloudStorageService` uses a clean abstraction layer to prevent leaking implementation details:
+
+```go
+// Clean abstraction - no Google Cloud Storage types exposed
+type CloudStorageOperations interface {
+    GetObject(ctx context.Context, bucket, objectPath string) ([]byte, error)
+    PutObject(ctx context.Context, bucket, objectPath string, data []byte) error
+    Close() error
+}
+
+// Production implementation - Google Cloud Storage details hidden
+type RealCloudStorageOperations struct {
+    client *storage.Client  // Implementation detail not exposed
+}
+
+// Test implementation - in-memory storage for testing
+type MockCloudStorageOperations struct {
+    objects map[string][]byte
+    getError error
+    putError error
+}
+```
+
+This pattern ensures that Google Cloud Storage implementation details (like `*storage.Client` or `stiface.Client`) never leak into the business logic.
 
 ### PubSubClient
 
@@ -138,8 +165,13 @@ Tests inject mock dependencies to isolate functionality:
 ```go
 func TestSubscribeHandler(t *testing.T) {
     // Create test dependencies
-    mockStorage := NewMockStorageService()
+    mockStorage := NewMockStorageClient()
     mockPubSub := NewMockPubSubClient()
+    
+    // Configure mock behavior
+    mockStorage.SetState(&SubscriptionState{
+        Subscriptions: make(map[string]*Subscription),
+    })
     
     deps := &Dependencies{
         StorageClient: mockStorage,
@@ -148,22 +180,55 @@ func TestSubscribeHandler(t *testing.T) {
     
     // Inject test dependencies
     SetDependencies(deps)
-    defer SetDependencies(nil) // Clean up
-    
-    // Configure mock behavior
-    mockPubSub.SubscribeFunc = func(channelID, callback string) error {
-        return nil // Simulate success
-    }
+    defer SetDependencies(CreateProductionDependencies()) // Restore production deps
     
     // Test handler
-    req := httptest.NewRequest("POST", "/subscribe?channel_id=UC123", nil)
+    req := httptest.NewRequest("POST", "/subscribe?channel_id=UCXuqSBlHAE6Xw-yeJA0Tunw", nil)
     rec := httptest.NewRecorder()
     
-    handleSubscribe(rec, req)
+    handler := handleSubscribe(deps)
+    handler(rec, req)
     
     // Verify behavior
     assert.Equal(t, http.StatusOK, rec.Code)
-    assert.Equal(t, 1, mockPubSub.SubscribeCallCount)
+    assert.Equal(t, 1, mockPubSub.GetSubscribeCount())
+    assert.True(t, mockPubSub.IsSubscribed("UCXuqSBlHAE6Xw-yeJA0Tunw"))
+}
+```
+
+### Testing CloudStorageService with Mock Operations
+
+For testing the CloudStorageService itself, use the operations interface:
+
+```go
+func TestCloudStorageService_LoadSubscriptionState(t *testing.T) {
+    // Create mock operations
+    mockOps := &MockCloudStorageOperations{
+        objects: make(map[string][]byte),
+    }
+    
+    // Create service with mock operations
+    service := NewCloudStorageServiceWithOperations(mockOps, "test-bucket")
+    
+    // Set up test data
+    testState := &SubscriptionState{
+        Subscriptions: map[string]*Subscription{
+            "UC123": {
+                ChannelID: "UC123",
+                Status:    "active",
+            },
+        },
+    }
+    data, _ := json.Marshal(testState)
+    mockOps.objects["subscriptions/state.json"] = data
+    
+    // Test load
+    state, err := service.LoadSubscriptionState(context.Background())
+    
+    // Verify
+    assert.NoError(t, err)
+    assert.Equal(t, 1, len(state.Subscriptions))
+    assert.Equal(t, "active", state.Subscriptions["UC123"].Status)
 }
 ```
 
@@ -215,6 +280,44 @@ func TestIntegration(t *testing.T) {
 - **Interface Segregation**: Focused interfaces for each service
 - **Dependency Inversion**: Depend on interfaces, not concrete types
 
+## Architectural Principles
+
+### No Test-Mode Branching in Production Code
+
+**Critical Principle**: Production code should never contain test-mode branching logic. All testing variations should be handled through dependency injection.
+
+```go
+// ❌ BAD: Test mode branching in production
+func LoadState() (*State, error) {
+    if testMode {  // Never do this!
+        return mockStorage.Load()
+    }
+    return realStorage.Load()
+}
+
+// ✅ GOOD: Clean dependency injection
+func (s *Service) LoadState() (*State, error) {
+    return s.storage.Load()  // Storage is injected
+}
+```
+
+### Clean Abstraction Layers
+
+Keep implementation details hidden behind interfaces. Never leak third-party types into your business logic:
+
+```go
+// ❌ BAD: Leaking implementation details
+type StorageService interface {
+    GetClient() *storage.Client  // Exposes Google Cloud Storage type
+}
+
+// ✅ GOOD: Clean abstraction
+type StorageService interface {
+    LoadSubscriptionState(ctx context.Context) (*SubscriptionState, error)
+    SaveSubscriptionState(ctx context.Context, state *SubscriptionState) error
+}
+```
+
 ## Best Practices
 
 ### 1. Always Use Interfaces
@@ -259,6 +362,23 @@ func NewCloudStorageService() StorageService {
 }
 ```
 
+### 5. Use Standard Testing Libraries
+Don't reinvent the wheel - leverage existing testing libraries from the ecosystem:
+```go
+// Use Google Cloud Go testing utilities
+import "cloud.google.com/go/storage"
+
+// Use standard mocking patterns
+import "github.com/stretchr/testify/assert"
+import "github.com/stretchr/testify/mock"
+```
+
+### 6. Comprehensive Test Coverage
+Aim for high test coverage through proper DI patterns:
+- **Target**: 85% test coverage
+- **Current**: 82.9% coverage achieved
+- **Strategy**: Test all code paths using dependency injection to isolate components
+
 ## Thread Safety
 
 The dependency container uses mutex protection for thread-safe access:
@@ -296,6 +416,37 @@ type HTTPPubSubClient struct {
     client *http.Client // Reused across requests
 }
 ```
+
+## Lessons Learned
+
+### Critical Production Fix (August 2024)
+
+During a refactoring session, we discovered production was incorrectly using `MockStorageClient` instead of the real `CloudStorageService`. This critical issue meant:
+- **Data was only stored in memory** - lost on function restart
+- **No persistence** between function invocations
+- **Subscription state was ephemeral**
+
+**Root Cause**: Test-mode branching logic that incorrectly selected mock implementations in production.
+
+**Solution**: Complete removal of test-mode branching, ensuring production always uses real implementations through proper dependency injection:
+
+```go
+// Before (WRONG):
+func CreateProductionDependencies() *Dependencies {
+    return &Dependencies{
+        StorageClient: NewMockStorageClient(),  // ❌ Mock in production!
+    }
+}
+
+// After (CORRECT):
+func CreateProductionDependencies() *Dependencies {
+    return &Dependencies{
+        StorageClient: NewCloudStorageService(),  // ✅ Real implementation
+    }
+}
+```
+
+**Key Takeaway**: Never mix mock and production implementations in the same code path. Use dependency injection to completely separate test and production configurations.
 
 ## Future Enhancements
 

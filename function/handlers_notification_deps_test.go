@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-func TestHandleNotificationWithDeps_Success(t *testing.T) {
+func TestHandleNotification_Success(t *testing.T) {
 	// Create test dependencies
 	deps := CreateTestDependencies()
 	mockGitHub := deps.GitHubClient.(*MockGitHubClient)
@@ -56,7 +56,7 @@ func TestHandleNotificationWithDeps_Success(t *testing.T) {
 	rec := httptest.NewRecorder()
 
 	// Create handler and execute
-	handler := handleNotificationWithDeps(deps)
+	handler := handleNotification(deps)
 	handler(rec, req)
 
 	// Verify response
@@ -83,7 +83,7 @@ func TestHandleNotificationWithDeps_Success(t *testing.T) {
 	}
 }
 
-func TestHandleNotificationWithDeps_GitHubNotConfigured(t *testing.T) {
+func TestHandleNotification_GitHubNotConfigured(t *testing.T) {
 	// Create test dependencies with unconfigured GitHub
 	deps := CreateTestDependencies()
 	mockGitHub := deps.GitHubClient.(*MockGitHubClient)
@@ -120,7 +120,7 @@ func TestHandleNotificationWithDeps_GitHubNotConfigured(t *testing.T) {
 	rec := httptest.NewRecorder()
 
 	// Create handler and execute
-	handler := handleNotificationWithDeps(deps)
+	handler := handleNotification(deps)
 	handler(rec, req)
 
 	// Verify response
@@ -139,7 +139,7 @@ func TestHandleNotificationWithDeps_GitHubNotConfigured(t *testing.T) {
 	}
 }
 
-func TestHandleNotificationWithDeps_InvalidXML(t *testing.T) {
+func TestHandleNotification_InvalidXML(t *testing.T) {
 	// Create test dependencies
 	deps := CreateTestDependencies()
 
@@ -149,7 +149,7 @@ func TestHandleNotificationWithDeps_InvalidXML(t *testing.T) {
 	rec := httptest.NewRecorder()
 
 	// Create handler and execute
-	handler := handleNotificationWithDeps(deps)
+	handler := handleNotification(deps)
 	handler(rec, req)
 
 	// Verify response
@@ -163,7 +163,7 @@ func TestHandleNotificationWithDeps_InvalidXML(t *testing.T) {
 	}
 }
 
-func TestHandleNotificationWithDeps_EmptyNotification(t *testing.T) {
+func TestHandleNotification_EmptyNotification(t *testing.T) {
 	// Create test dependencies
 	deps := CreateTestDependencies()
 
@@ -179,7 +179,7 @@ func TestHandleNotificationWithDeps_EmptyNotification(t *testing.T) {
 	rec := httptest.NewRecorder()
 
 	// Create handler and execute
-	handler := handleNotificationWithDeps(deps)
+	handler := handleNotification(deps)
 	handler(rec, req)
 
 	// Verify response
@@ -193,7 +193,7 @@ func TestHandleNotificationWithDeps_EmptyNotification(t *testing.T) {
 	}
 }
 
-func TestHandleNotificationWithDeps_NotNewVideo(t *testing.T) {
+func TestHandleNotification_NotNewVideo(t *testing.T) {
 	// Create test dependencies
 	deps := CreateTestDependencies()
 
@@ -220,7 +220,7 @@ func TestHandleNotificationWithDeps_NotNewVideo(t *testing.T) {
 	rec := httptest.NewRecorder()
 
 	// Create handler and execute
-	handler := handleNotificationWithDeps(deps)
+	handler := handleNotification(deps)
 	handler(rec, req)
 
 	// Verify response
@@ -234,7 +234,7 @@ func TestHandleNotificationWithDeps_NotNewVideo(t *testing.T) {
 	}
 }
 
-func TestHandleNotificationWithDeps_GitHubTriggerError(t *testing.T) {
+func TestHandleNotification_GitHubTriggerError(t *testing.T) {
 	// Create test dependencies
 	deps := CreateTestDependencies()
 	mockGitHub := deps.GitHubClient.(*MockGitHubClient)
@@ -272,7 +272,7 @@ func TestHandleNotificationWithDeps_GitHubTriggerError(t *testing.T) {
 	rec := httptest.NewRecorder()
 
 	// Create handler and execute
-	handler := handleNotificationWithDeps(deps)
+	handler := handleNotification(deps)
 	handler(rec, req)
 
 	// Verify response
@@ -286,7 +286,7 @@ func TestHandleNotificationWithDeps_GitHubTriggerError(t *testing.T) {
 	}
 }
 
-func TestHandleNotificationWithDeps_ReadBodyError(t *testing.T) {
+func TestHandleNotification_ReadBodyError(t *testing.T) {
 	// Create test dependencies
 	deps := CreateTestDependencies()
 
@@ -296,7 +296,7 @@ func TestHandleNotificationWithDeps_ReadBodyError(t *testing.T) {
 	rec := httptest.NewRecorder()
 
 	// Create handler and execute
-	handler := handleNotificationWithDeps(deps)
+	handler := handleNotification(deps)
 	handler(rec, req)
 
 	// Verify response
@@ -357,7 +357,7 @@ func TestNotificationService_ProcessNotification_ThreadSafety(t *testing.T) {
 	const numGoroutines = 10
 	done := make(chan bool, numGoroutines)
 
-	handler := handleNotificationWithDeps(deps)
+	handler := handleNotification(deps)
 
 	for i := 0; i < numGoroutines; i++ {
 		go func() {
@@ -383,8 +383,8 @@ func TestNotificationService_ProcessNotification_ThreadSafety(t *testing.T) {
 	}
 }
 
-func TestHandleNotificationRefactored_CompatibilityWrapper(t *testing.T) {
-	// This test ensures the compatibility wrapper works correctly
+func TestHandleNotification_DependencyInjection(t *testing.T) {
+	// This test ensures the dependency injection pattern works correctly
 
 	// Set environment variables
 	os.Setenv("REPO_OWNER", "test-owner")
@@ -418,7 +418,7 @@ func TestHandleNotificationRefactored_CompatibilityWrapper(t *testing.T) {
 
 	// Call the dependency injection handler directly
 	deps := CreateTestDependencies()
-	handler := handleNotificationWithDeps(deps)
+	handler := handleNotification(deps)
 	handler(rec, req)
 
 	// Verify it behaves like a normal handler (status should be set)

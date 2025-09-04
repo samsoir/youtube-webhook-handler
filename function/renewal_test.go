@@ -74,7 +74,7 @@ func TestHandleRenewSubscriptions(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		// Use dependency injection handler
-		handler := handleRenewSubscriptionsWithDeps(deps)
+		handler := handleRenewSubscriptions(deps)
 		handler(w, req)
 
 		// Verify response
@@ -127,7 +127,7 @@ func TestHandleRenewSubscriptions(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		// Use dependency injection handler
-		handler := handleRenewSubscriptionsWithDeps(deps)
+		handler := handleRenewSubscriptions(deps)
 		handler(w, req)
 
 		// Verify response
@@ -175,7 +175,7 @@ func TestHandleRenewSubscriptions(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		// Use dependency injection handler
-		handler := handleRenewSubscriptionsWithDeps(deps)
+		handler := handleRenewSubscriptions(deps)
 		handler(w, req)
 
 		// Verify response
@@ -228,7 +228,7 @@ func TestHandleRenewSubscriptions(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		// Use dependency injection handler
-		handler := handleRenewSubscriptionsWithDeps(deps)
+		handler := handleRenewSubscriptions(deps)
 		handler(w, req)
 
 		// Verify response
@@ -262,7 +262,7 @@ func TestHandleRenewSubscriptions(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		// Use dependency injection handler
-		handler := handleRenewSubscriptionsWithDeps(deps)
+		handler := handleRenewSubscriptions(deps)
 		handler(w, req)
 
 		// Verify response
@@ -290,7 +290,7 @@ func TestHandleRenewSubscriptions(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		// Use dependency injection handler
-		handler := handleRenewSubscriptionsWithDeps(deps)
+		handler := handleRenewSubscriptions(deps)
 		handler(w, req)
 
 		// Verify response
@@ -331,7 +331,7 @@ func TestHandleRenewSubscriptions(t *testing.T) {
 		w := httptest.NewRecorder()
 
 		// Use dependency injection handler
-		handler := handleRenewSubscriptionsWithDeps(deps)
+		handler := handleRenewSubscriptions(deps)
 		handler(w, req)
 
 		// Verify response

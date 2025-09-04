@@ -220,7 +220,7 @@ func TestYouTubeWebhook_CORSHeaders(t *testing.T) {
 	}
 }
 
-func TestHandleGetSubscriptionsWithDeps(t *testing.T) {
+func TestHandleGetSubscriptionsHandler(t *testing.T) {
 	// Create test dependencies
 	deps := CreateTestDependencies()
 
@@ -246,7 +246,7 @@ func TestHandleGetSubscriptionsWithDeps(t *testing.T) {
 	rec := httptest.NewRecorder()
 
 	// Create and call handler
-	handler := handleGetSubscriptionsWithDeps(deps)
+	handler := handleGetSubscriptions(deps)
 	handler(rec, req)
 
 	// Verify response
@@ -267,19 +267,21 @@ func TestHandleGetSubscriptionsWithDeps(t *testing.T) {
 	}
 }
 
-func TestHandleGetSubscriptionsRefactored_CompatibilityWrapper(t *testing.T) {
-	// This test ensures the compatibility wrapper works correctly
+func TestHandleGetSubscriptions_DependencyInjection(t *testing.T) {
+	// This test verifies the dependency injection pattern works correctly
+	deps := CreateTestDependencies()
 
 	// Create test request
 	req := httptest.NewRequest("GET", "/subscriptions", nil)
 	rec := httptest.NewRecorder()
 
-	// Call the compatibility wrapper
-	handleGetSubscriptions(rec, req)
+	// Call the dependency injection handler
+	handler := handleGetSubscriptions(deps)
+	handler(rec, req)
 
 	// Verify it behaves like a normal handler (status should be set)
 	if rec.Code == 0 {
-		t.Error("Expected non-zero status code from compatibility wrapper")
+		t.Error("Expected non-zero status code from dependency injection handler")
 	}
 }
 

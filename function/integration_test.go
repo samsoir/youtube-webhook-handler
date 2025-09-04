@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestHandlers_EndToEnd tests the complete refactored flow
+// TestHandlers_EndToEnd tests the complete dependency injection flow
 func TestHandlers_EndToEnd(t *testing.T) {
 	// Create test dependencies
 	deps := CreateTestDependencies()
@@ -27,7 +27,7 @@ func TestHandlers_EndToEnd(t *testing.T) {
 		rec := httptest.NewRecorder()
 
 		// Execute handler
-		handler := handleSubscribeWithDeps(deps)
+		handler := handleSubscribe(deps)
 		handler(rec, req)
 
 		// Verify response
@@ -62,7 +62,7 @@ func TestHandlers_EndToEnd(t *testing.T) {
 		rec := httptest.NewRecorder()
 
 		// Execute handler
-		handler := handleUnsubscribeWithDeps(deps)
+		handler := handleUnsubscribe(deps)
 		handler(rec, req)
 
 		// Verify response
@@ -95,7 +95,7 @@ func TestHandlers_EndToEnd(t *testing.T) {
 		rec := httptest.NewRecorder()
 
 		// Execute handler
-		handler := handleRenewSubscriptionsWithDeps(deps)
+		handler := handleRenewSubscriptions(deps)
 		handler(rec, req)
 
 		// Verify response
@@ -126,7 +126,7 @@ func TestHandlers_ErrorScenarios(t *testing.T) {
 		req := httptest.NewRequest("POST", "/subscribe?channel_id=UCXuqSBlHAE6Xw-yeJA0Tunw", nil)
 		rec := httptest.NewRecorder()
 
-		handler := handleSubscribeWithDeps(deps)
+		handler := handleSubscribe(deps)
 		handler(rec, req)
 
 		assert.Equal(t, http.StatusInternalServerError, rec.Code)
@@ -145,7 +145,7 @@ func TestHandlers_ErrorScenarios(t *testing.T) {
 		req := httptest.NewRequest("DELETE", "/unsubscribe?channel_id="+nonExistentChannelID, nil)
 		rec := httptest.NewRecorder()
 
-		handler := handleUnsubscribeWithDeps(deps)
+		handler := handleUnsubscribe(deps)
 		handler(rec, req)
 
 		assert.Equal(t, http.StatusNotFound, rec.Code)
@@ -176,7 +176,7 @@ func TestHandlers_ErrorScenarios(t *testing.T) {
 		req := httptest.NewRequest("POST", "/renew", nil)
 		rec := httptest.NewRecorder()
 
-		handler := handleRenewSubscriptionsWithDeps(deps)
+		handler := handleRenewSubscriptions(deps)
 		handler(rec, req)
 
 		assert.Equal(t, http.StatusOK, rec.Code)
@@ -201,7 +201,7 @@ func TestHandlers_ConcurrentAccess(t *testing.T) {
 	go func() {
 		req := httptest.NewRequest("POST", "/subscribe?channel_id=UCConcurrent1", nil)
 		rec := httptest.NewRecorder()
-		handler := handleSubscribeWithDeps(deps)
+		handler := handleSubscribe(deps)
 		handler(rec, req)
 		done <- true
 	}()
@@ -210,7 +210,7 @@ func TestHandlers_ConcurrentAccess(t *testing.T) {
 	go func() {
 		req := httptest.NewRequest("DELETE", "/unsubscribe?channel_id=UCConcurrent2", nil)
 		rec := httptest.NewRecorder()
-		handler := handleUnsubscribeWithDeps(deps)
+		handler := handleUnsubscribe(deps)
 		handler(rec, req)
 		done <- true
 	}()
@@ -219,7 +219,7 @@ func TestHandlers_ConcurrentAccess(t *testing.T) {
 	go func() {
 		req := httptest.NewRequest("POST", "/renew", nil)
 		rec := httptest.NewRecorder()
-		handler := handleRenewSubscriptionsWithDeps(deps)
+		handler := handleRenewSubscriptions(deps)
 		handler(rec, req)
 		done <- true
 	}()
@@ -236,7 +236,7 @@ func TestHandlers_ConcurrentAccess(t *testing.T) {
 // TestHandlers_NoDependencyOnGlobalTestMode verifies no global state usage
 func TestHandlers_NoDependencyOnGlobalTestMode(t *testing.T) {
 	// This test runs without setting any global testMode
-	// If the refactored handlers depend on testMode, they will fail
+	// If the handlers depend on testMode, they will fail
 
 	deps := CreateTestDependencies()
 
@@ -245,7 +245,7 @@ func TestHandlers_NoDependencyOnGlobalTestMode(t *testing.T) {
 		req := httptest.NewRequest("POST", "/subscribe?channel_id=UCNoGlobalState123456789", nil)
 		rec := httptest.NewRecorder()
 
-		handler := handleSubscribeWithDeps(deps)
+		handler := handleSubscribe(deps)
 		handler(rec, req)
 
 		if rec.Code != http.StatusOK {
@@ -274,7 +274,7 @@ func TestHandlers_NoDependencyOnGlobalTestMode(t *testing.T) {
 		req := httptest.NewRequest("DELETE", "/unsubscribe?channel_id="+channelID, nil)
 		rec := httptest.NewRecorder()
 
-		handler := handleUnsubscribeWithDeps(deps)
+		handler := handleUnsubscribe(deps)
 		handler(rec, req)
 
 		assert.Equal(t, http.StatusNoContent, rec.Code)

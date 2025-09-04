@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestUnsubscribeWithDeps_EdgeCases tests various edge cases for the unsubscribe handler using dependency injection
-func TestUnsubscribeWithDeps_EdgeCases(t *testing.T) {
+// TestUnsubscribe_EdgeCases tests various edge cases for the unsubscribe handler using dependency injection
+func TestUnsubscribe_EdgeCases(t *testing.T) {
 	t.Run("InvalidChannelID", func(t *testing.T) {
 		deps := CreateTestDependencies()
 
@@ -44,7 +44,7 @@ func TestUnsubscribeWithDeps_EdgeCases(t *testing.T) {
 				req := httptest.NewRequest("DELETE", "/unsubscribe?channel_id="+tc.channelID, nil)
 				w := httptest.NewRecorder()
 
-				handler := handleUnsubscribeWithDeps(deps)
+				handler := handleUnsubscribe(deps)
 				handler(w, req)
 
 				assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -68,7 +68,7 @@ func TestUnsubscribeWithDeps_EdgeCases(t *testing.T) {
 		req := httptest.NewRequest("DELETE", "/unsubscribe?channel_id="+channelID, nil)
 		w := httptest.NewRecorder()
 
-		handler := handleUnsubscribeWithDeps(deps)
+		handler := handleUnsubscribe(deps)
 		handler(w, req)
 
 		assert.Equal(t, http.StatusNotFound, w.Code)
@@ -89,7 +89,7 @@ func TestUnsubscribeWithDeps_EdgeCases(t *testing.T) {
 			req := httptest.NewRequest("DELETE", "/unsubscribe?channel_id="+testutil.TestChannelIDs.Valid, nil)
 			w := httptest.NewRecorder()
 
-			handler := handleUnsubscribeWithDeps(deps)
+			handler := handleUnsubscribe(deps)
 			handler(w, req)
 
 			assert.Equal(t, http.StatusInternalServerError, w.Code)
@@ -117,7 +117,7 @@ func TestUnsubscribeWithDeps_EdgeCases(t *testing.T) {
 			req := httptest.NewRequest("DELETE", "/unsubscribe?channel_id="+channelID, nil)
 			w := httptest.NewRecorder()
 
-			handler := handleUnsubscribeWithDeps(deps)
+			handler := handleUnsubscribe(deps)
 			handler(w, req)
 
 			assert.Equal(t, http.StatusInternalServerError, w.Code)
@@ -147,7 +147,7 @@ func TestUnsubscribeWithDeps_EdgeCases(t *testing.T) {
 		req := httptest.NewRequest("DELETE", "/unsubscribe?channel_id="+channelID, nil)
 		w := httptest.NewRecorder()
 
-		handler := handleUnsubscribeWithDeps(deps)
+		handler := handleUnsubscribe(deps)
 		handler(w, req)
 
 		assert.Equal(t, http.StatusBadGateway, w.Code)
@@ -172,7 +172,7 @@ func TestUnsubscribeWithDeps_EdgeCases(t *testing.T) {
 		req := httptest.NewRequest("DELETE", "/unsubscribe?channel_id="+channelID, nil)
 		w := httptest.NewRecorder()
 
-		handler := handleUnsubscribeWithDeps(deps)
+		handler := handleUnsubscribe(deps)
 		handler(w, req)
 
 		// Should return 204 No Content
@@ -202,7 +202,7 @@ func TestUnsubscribeWithDeps_EdgeCases(t *testing.T) {
 		req := httptest.NewRequest("DELETE", "/unsubscribe?channel_id="+channelID1, nil)
 		w := httptest.NewRecorder()
 
-		handler := handleUnsubscribeWithDeps(deps)
+		handler := handleUnsubscribe(deps)
 		handler(w, req)
 
 		assert.Equal(t, http.StatusNoContent, w.Code)
@@ -233,7 +233,7 @@ func TestUnsubscribeWithDeps_EdgeCases(t *testing.T) {
 				req := httptest.NewRequest("DELETE", "/unsubscribe?channel_id="+channelID, nil)
 				w := httptest.NewRecorder()
 
-				handler := handleUnsubscribeWithDeps(deps)
+				handler := handleUnsubscribe(deps)
 				handler(w, req)
 
 				results[index] = w.Code
@@ -260,8 +260,8 @@ func TestUnsubscribeWithDeps_EdgeCases(t *testing.T) {
 	})
 }
 
-// TestUnsubscribeWithDeps_ErrorRecovery tests error recovery scenarios
-func TestUnsubscribeWithDeps_ErrorRecovery(t *testing.T) {
+// TestUnsubscribe_ErrorRecovery tests error recovery scenarios
+func TestUnsubscribe_ErrorRecovery(t *testing.T) {
 	t.Run("RecoverFromTransientPubSubError", func(t *testing.T) {
 		deps := CreateTestDependencies()
 		channelID := testutil.TestChannelIDs.Valid
@@ -279,7 +279,7 @@ func TestUnsubscribeWithDeps_ErrorRecovery(t *testing.T) {
 		req1 := httptest.NewRequest("DELETE", "/unsubscribe?channel_id="+channelID, nil)
 		w1 := httptest.NewRecorder()
 
-		handler := handleUnsubscribeWithDeps(deps)
+		handler := handleUnsubscribe(deps)
 		handler(w1, req1)
 
 		assert.Equal(t, http.StatusBadGateway, w1.Code)

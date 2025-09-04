@@ -24,7 +24,7 @@ func TestIntegrationWorkflows_FullSubscriptionLifecycle(t *testing.T) {
 		req := httptest.NewRequest("POST", "/subscribe?channel_id="+channelID, nil)
 		w := httptest.NewRecorder()
 
-		handler := handleSubscribeWithDeps(deps)
+		handler := handleSubscribe(deps)
 		handler(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -47,7 +47,7 @@ func TestIntegrationWorkflows_FullSubscriptionLifecycle(t *testing.T) {
 		req := httptest.NewRequest("GET", "/subscriptions", nil)
 		w := httptest.NewRecorder()
 
-		handler := handleGetSubscriptionsWithDeps(deps)
+		handler := handleGetSubscriptions(deps)
 		handler(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -85,7 +85,7 @@ func TestIntegrationWorkflows_FullSubscriptionLifecycle(t *testing.T) {
 		req := httptest.NewRequest("POST", "/", strings.NewReader(xmlPayload))
 		w := httptest.NewRecorder()
 
-		handler := handleNotificationWithDeps(deps)
+		handler := handleNotification(deps)
 		handler(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -112,7 +112,7 @@ func TestIntegrationWorkflows_FullSubscriptionLifecycle(t *testing.T) {
 		req := httptest.NewRequest("POST", "/renew", nil)
 		w := httptest.NewRecorder()
 
-		handler := handleRenewSubscriptionsWithDeps(deps)
+		handler := handleRenewSubscriptions(deps)
 		handler(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -138,7 +138,7 @@ func TestIntegrationWorkflows_FullSubscriptionLifecycle(t *testing.T) {
 		req := httptest.NewRequest("DELETE", "/unsubscribe?channel_id="+channelID, nil)
 		w := httptest.NewRecorder()
 
-		handler := handleUnsubscribeWithDeps(deps)
+		handler := handleUnsubscribe(deps)
 		handler(w, req)
 
 		assert.Equal(t, http.StatusNoContent, w.Code)
@@ -158,7 +158,7 @@ func TestIntegrationWorkflows_FullSubscriptionLifecycle(t *testing.T) {
 		req := httptest.NewRequest("GET", "/subscriptions", nil)
 		w := httptest.NewRecorder()
 
-		handler := handleGetSubscriptionsWithDeps(deps)
+		handler := handleGetSubscriptions(deps)
 		handler(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -188,7 +188,7 @@ func TestIntegrationWorkflows_MultipleChannelManagement(t *testing.T) {
 			req := httptest.NewRequest("POST", "/subscribe?channel_id="+channelID, nil)
 			w := httptest.NewRecorder()
 
-			handler := handleSubscribeWithDeps(deps)
+			handler := handleSubscribe(deps)
 			handler(w, req)
 
 			assert.Equal(t, http.StatusOK, w.Code)
@@ -200,7 +200,7 @@ func TestIntegrationWorkflows_MultipleChannelManagement(t *testing.T) {
 		req := httptest.NewRequest("GET", "/subscriptions", nil)
 		w := httptest.NewRecorder()
 
-		handler := handleGetSubscriptionsWithDeps(deps)
+		handler := handleGetSubscriptions(deps)
 		handler(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -246,7 +246,7 @@ func TestIntegrationWorkflows_MultipleChannelManagement(t *testing.T) {
 			req := httptest.NewRequest("POST", "/", strings.NewReader(xmlPayload))
 			w := httptest.NewRecorder()
 
-			handler := handleNotificationWithDeps(deps)
+			handler := handleNotification(deps)
 			handler(w, req)
 
 			assert.Equal(t, http.StatusOK, w.Code)
@@ -274,7 +274,7 @@ func TestIntegrationWorkflows_MultipleChannelManagement(t *testing.T) {
 		req := httptest.NewRequest("POST", "/renew", nil)
 		w := httptest.NewRecorder()
 
-		handler := handleRenewSubscriptionsWithDeps(deps)
+		handler := handleRenewSubscriptions(deps)
 		handler(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -294,7 +294,7 @@ func TestIntegrationWorkflows_MultipleChannelManagement(t *testing.T) {
 		req := httptest.NewRequest("DELETE", "/unsubscribe?channel_id="+channel2, nil)
 		w := httptest.NewRecorder()
 
-		handler := handleUnsubscribeWithDeps(deps)
+		handler := handleUnsubscribe(deps)
 		handler(w, req)
 
 		assert.Equal(t, http.StatusNoContent, w.Code)
@@ -321,7 +321,7 @@ func TestIntegrationWorkflows_ErrorRecoveryAndResilience(t *testing.T) {
 		req1 := httptest.NewRequest("POST", "/subscribe?channel_id="+channelID, nil)
 		w1 := httptest.NewRecorder()
 
-		handler := handleSubscribeWithDeps(deps)
+		handler := handleSubscribe(deps)
 		handler(w1, req1)
 
 		assert.Equal(t, http.StatusInternalServerError, w1.Code)
@@ -349,7 +349,7 @@ func TestIntegrationWorkflows_ErrorRecoveryAndResilience(t *testing.T) {
 		req1 := httptest.NewRequest("POST", "/subscribe?channel_id=UC1234567890123456789012", nil)
 		w1 := httptest.NewRecorder()
 
-		handler := handleSubscribeWithDeps(deps)
+		handler := handleSubscribe(deps)
 		handler(w1, req1)
 
 		assert.Equal(t, http.StatusBadGateway, w1.Code)
@@ -369,7 +369,7 @@ func TestIntegrationWorkflows_ErrorRecoveryAndResilience(t *testing.T) {
 		// Subscribe first
 		req := httptest.NewRequest("POST", "/subscribe?channel_id=UC2345678901234567890123", nil)
 		w := httptest.NewRecorder()
-		handler := handleSubscribeWithDeps(deps)
+		handler := handleSubscribe(deps)
 		handler(w, req)
 		assert.Equal(t, http.StatusOK, w.Code)
 
@@ -392,7 +392,7 @@ func TestIntegrationWorkflows_ErrorRecoveryAndResilience(t *testing.T) {
 		req1 := httptest.NewRequest("POST", "/", strings.NewReader(xmlPayload))
 		w1 := httptest.NewRecorder()
 
-		notificationHandler := handleNotificationWithDeps(deps)
+		notificationHandler := handleNotification(deps)
 		notificationHandler(w1, req1)
 
 		assert.Equal(t, http.StatusInternalServerError, w1.Code)
@@ -428,7 +428,7 @@ func TestIntegrationWorkflows_ConcurrentOperations(t *testing.T) {
 				req := httptest.NewRequest("POST", "/subscribe?channel_id="+channelID, nil)
 				w := httptest.NewRecorder()
 
-				handler := handleSubscribeWithDeps(deps)
+				handler := handleSubscribe(deps)
 				handler(w, req)
 
 				results[index] = w.Code
@@ -475,7 +475,7 @@ func TestIntegrationWorkflows_ConcurrentOperations(t *testing.T) {
 				req := httptest.NewRequest("POST", "/", strings.NewReader(xmlPayload))
 				w := httptest.NewRecorder()
 
-				handler := handleNotificationWithDeps(deps)
+				handler := handleNotification(deps)
 				handler(w, req)
 
 				results[index] = w.Code

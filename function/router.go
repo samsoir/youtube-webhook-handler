@@ -24,23 +24,23 @@ func YouTubeWebhook(w http.ResponseWriter, r *http.Request) {
 
 	switch {
 	case path == "subscribe" && r.Method == http.MethodPost:
-		handler := handleSubscribeWithDeps(deps)
+		handler := handleSubscribe(deps)
 		handler(w, r)
 	case path == "unsubscribe" && r.Method == http.MethodDelete:
-		handler := handleUnsubscribeWithDeps(deps)
+		handler := handleUnsubscribe(deps)
 		handler(w, r)
 	case path == "subscriptions" && r.Method == http.MethodGet:
-		handler := handleGetSubscriptionsWithDeps(deps)
+		handler := handleGetSubscriptions(deps)
 		handler(w, r)
 	case path == "renew" && r.Method == http.MethodPost:
-		handler := handleRenewSubscriptionsWithDeps(deps)
+		handler := handleRenewSubscriptions(deps)
 		handler(w, r)
 	case r.Method == http.MethodGet:
 		// Default GET behavior - YouTube verification challenge
 		handleVerificationChallenge(w, r)
 	case r.Method == http.MethodPost:
 		// Default POST behavior - YouTube notifications
-		handler := handleNotificationWithDeps(deps)
+		handler := handleNotification(deps)
 		handler(w, r)
 	case r.Method == http.MethodOptions:
 		// CORS preflight request
@@ -53,8 +53,8 @@ func YouTubeWebhook(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// handleGetSubscriptionsWithDeps handles GET /subscriptions requests using dependency injection
-func handleGetSubscriptionsWithDeps(deps *Dependencies) http.HandlerFunc {
+// handleGetSubscriptions handles GET /subscriptions requests using dependency injection
+func handleGetSubscriptions(deps *Dependencies) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 
@@ -104,13 +104,6 @@ func handleGetSubscriptionsWithDeps(deps *Dependencies) http.HandlerFunc {
 	}
 }
 
-// Compatibility wrapper for the refactored router
-// This allows gradual migration from the original router
-func handleGetSubscriptions(w http.ResponseWriter, r *http.Request) {
-	deps := GetDependencies()
-	handler := handleGetSubscriptionsWithDeps(deps)
-	handler(w, r)
-}
 
 // Helper functions to make the code more testable by abstracting time and formats
 

@@ -96,3 +96,7 @@ function-source.zip
 # Function binaries
 function/webhook
 function/webhook-linux
+
+# CLI binaries
+youtube-webhook
+cli-coverage.html

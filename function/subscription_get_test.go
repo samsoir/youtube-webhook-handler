@@ -53,7 +53,7 @@ func TestGetSubscriptions_Success(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	// Execute using dependency injection
-	handler := handleGetSubscriptionsWithDeps(deps)
+	handler := handleGetSubscriptions(deps)
 	handler(w, req)
 
 	// Verify HTTP response
@@ -138,7 +138,7 @@ func TestGetSubscriptions_Empty(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	// Execute using dependency injection
-	handler := handleGetSubscriptionsWithDeps(deps)
+	handler := handleGetSubscriptions(deps)
 	handler(w, req)
 
 	// Verify HTTP response

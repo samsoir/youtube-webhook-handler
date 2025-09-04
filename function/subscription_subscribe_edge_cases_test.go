@@ -13,8 +13,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestSubscribeWithDeps_EdgeCases tests various edge cases for the subscribe handler using dependency injection
-func TestSubscribeWithDeps_EdgeCases(t *testing.T) {
+// TestSubscribe_EdgeCases tests various edge cases for the subscribe handler using dependency injection
+func TestSubscribe_EdgeCases(t *testing.T) {
 	t.Run("InvalidChannelID", func(t *testing.T) {
 		deps := CreateTestDependencies()
 
@@ -55,7 +55,7 @@ func TestSubscribeWithDeps_EdgeCases(t *testing.T) {
 				req := httptest.NewRequest("POST", "/subscribe?channel_id="+url.QueryEscape(tc.channelID), nil)
 				w := httptest.NewRecorder()
 
-				handler := handleSubscribeWithDeps(deps)
+				handler := handleSubscribe(deps)
 				handler(w, req)
 
 				assert.Equal(t, http.StatusBadRequest, w.Code, "Should return 400 for invalid channel ID")
@@ -78,7 +78,7 @@ func TestSubscribeWithDeps_EdgeCases(t *testing.T) {
 			req := httptest.NewRequest("POST", "/subscribe?channel_id="+testutil.TestChannelIDs.Valid, nil)
 			w := httptest.NewRecorder()
 
-			handler := handleSubscribeWithDeps(deps)
+			handler := handleSubscribe(deps)
 			handler(w, req)
 
 			assert.Equal(t, http.StatusInternalServerError, w.Code)
@@ -98,7 +98,7 @@ func TestSubscribeWithDeps_EdgeCases(t *testing.T) {
 			req := httptest.NewRequest("POST", "/subscribe?channel_id="+testutil.TestChannelIDs.Valid, nil)
 			w := httptest.NewRecorder()
 
-			handler := handleSubscribeWithDeps(deps)
+			handler := handleSubscribe(deps)
 			handler(w, req)
 
 			assert.Equal(t, http.StatusInternalServerError, w.Code)
@@ -122,7 +122,7 @@ func TestSubscribeWithDeps_EdgeCases(t *testing.T) {
 		req := httptest.NewRequest("POST", "/subscribe?channel_id="+testutil.TestChannelIDs.Valid, nil)
 		w := httptest.NewRecorder()
 
-		handler := handleSubscribeWithDeps(deps)
+		handler := handleSubscribe(deps)
 		handler(w, req)
 
 		assert.Equal(t, http.StatusBadGateway, w.Code)
@@ -143,7 +143,7 @@ func TestSubscribeWithDeps_EdgeCases(t *testing.T) {
 		req := httptest.NewRequest("POST", "/subscribe", nil)
 		w := httptest.NewRecorder()
 
-		handler := handleSubscribeWithDeps(deps)
+		handler := handleSubscribe(deps)
 		handler(w, req)
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -174,7 +174,7 @@ func TestSubscribeWithDeps_EdgeCases(t *testing.T) {
 				req := httptest.NewRequest("POST", "/subscribe?channel_id="+channelID, nil)
 				w := httptest.NewRecorder()
 
-				handler := handleSubscribeWithDeps(deps)
+				handler := handleSubscribe(deps)
 				handler(w, req)
 
 				results[index] = w.Code
@@ -196,8 +196,8 @@ func TestSubscribeWithDeps_EdgeCases(t *testing.T) {
 	})
 }
 
-// TestSubscribeWithDeps_ErrorRecovery tests error recovery scenarios
-func TestSubscribeWithDeps_ErrorRecovery(t *testing.T) {
+// TestSubscribe_ErrorRecovery tests error recovery scenarios
+func TestSubscribe_ErrorRecovery(t *testing.T) {
 	t.Run("RecoverFromTransientStorageError", func(t *testing.T) {
 		deps := CreateTestDependencies()
 		channelID := testutil.TestChannelIDs.Valid
@@ -208,7 +208,7 @@ func TestSubscribeWithDeps_ErrorRecovery(t *testing.T) {
 		req1 := httptest.NewRequest("POST", "/subscribe?channel_id="+channelID, nil)
 		w1 := httptest.NewRecorder()
 
-		handler := handleSubscribeWithDeps(deps)
+		handler := handleSubscribe(deps)
 		handler(w1, req1)
 
 		assert.Equal(t, http.StatusInternalServerError, w1.Code)
@@ -240,7 +240,7 @@ func TestSubscribeWithDeps_ErrorRecovery(t *testing.T) {
 		req1 := httptest.NewRequest("POST", "/subscribe?channel_id="+channelID, nil)
 		w1 := httptest.NewRecorder()
 
-		handler := handleSubscribeWithDeps(deps)
+		handler := handleSubscribe(deps)
 		handler(w1, req1)
 
 		assert.Equal(t, http.StatusBadGateway, w1.Code)

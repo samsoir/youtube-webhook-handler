@@ -12,15 +12,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestRenewalWithDeps_EdgeCases tests various edge cases for the renewal handler using dependency injection
-func TestRenewalWithDeps_EdgeCases(t *testing.T) {
+// TestRenewal_EdgeCases tests various edge cases for the renewal handler using dependency injection
+func TestRenewal_EdgeCases(t *testing.T) {
 	t.Run("NoSubscriptions", func(t *testing.T) {
 		deps := CreateTestDependencies()
 
 		req := httptest.NewRequest("POST", "/renew", nil)
 		w := httptest.NewRecorder()
 
-		handler := handleRenewSubscriptionsWithDeps(deps)
+		handler := handleRenewSubscriptions(deps)
 		handler(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -54,7 +54,7 @@ func TestRenewalWithDeps_EdgeCases(t *testing.T) {
 		req := httptest.NewRequest("POST", "/renew", nil)
 		w := httptest.NewRecorder()
 
-		handler := handleRenewSubscriptionsWithDeps(deps)
+		handler := handleRenewSubscriptions(deps)
 		handler(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -88,7 +88,7 @@ func TestRenewalWithDeps_EdgeCases(t *testing.T) {
 		req := httptest.NewRequest("POST", "/renew", nil)
 		w := httptest.NewRecorder()
 
-		handler := handleRenewSubscriptionsWithDeps(deps)
+		handler := handleRenewSubscriptions(deps)
 		handler(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -133,7 +133,7 @@ func TestRenewalWithDeps_EdgeCases(t *testing.T) {
 		req := httptest.NewRequest("POST", "/renew", nil)
 		w := httptest.NewRecorder()
 
-		handler := handleRenewSubscriptionsWithDeps(deps)
+		handler := handleRenewSubscriptions(deps)
 		handler(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -176,7 +176,7 @@ func TestRenewalWithDeps_EdgeCases(t *testing.T) {
 		req := httptest.NewRequest("POST", "/renew", nil)
 		w := httptest.NewRecorder()
 
-		handler := handleRenewSubscriptionsWithDeps(deps)
+		handler := handleRenewSubscriptions(deps)
 		handler(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -240,7 +240,7 @@ func TestRenewalWithDeps_EdgeCases(t *testing.T) {
 		req := httptest.NewRequest("POST", "/renew", nil)
 		w := httptest.NewRecorder()
 
-		handler := handleRenewSubscriptionsWithDeps(deps)
+		handler := handleRenewSubscriptions(deps)
 		handler(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -281,7 +281,7 @@ func TestRenewalWithDeps_EdgeCases(t *testing.T) {
 			req := httptest.NewRequest("POST", "/renew", nil)
 			w := httptest.NewRecorder()
 
-			handler := handleRenewSubscriptionsWithDeps(deps)
+			handler := handleRenewSubscriptions(deps)
 			handler(w, req)
 
 			assert.Equal(t, http.StatusInternalServerError, w.Code)
@@ -313,7 +313,7 @@ func TestRenewalWithDeps_EdgeCases(t *testing.T) {
 			req := httptest.NewRequest("POST", "/renew", nil)
 			w := httptest.NewRecorder()
 
-			handler := handleRenewSubscriptionsWithDeps(deps)
+			handler := handleRenewSubscriptions(deps)
 			handler(w, req)
 
 			assert.Equal(t, http.StatusInternalServerError, w.Code)

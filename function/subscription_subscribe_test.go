@@ -32,7 +32,7 @@ func TestSubscribeToChannel_Success(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	// Execute using dependency injection
-	handler := handleSubscribeWithDeps(deps)
+	handler := handleSubscribe(deps)
 	handler(w, req)
 
 	// Verify HTTP response
@@ -92,7 +92,7 @@ func TestSubscribeToChannel_AlreadySubscribed(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	// Execute using dependency injection
-	handler := handleSubscribeWithDeps(deps)
+	handler := handleSubscribe(deps)
 	handler(w, req)
 
 	// Verify HTTP response
