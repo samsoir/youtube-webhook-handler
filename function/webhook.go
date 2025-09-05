@@ -7,10 +7,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"os"
 	"regexp"
-	"strings"
 	"time"
 
 	"cloud.google.com/go/storage"
@@ -158,55 +156,6 @@ func validateChannelID(channelID string) bool {
 	return channelIDRegex.MatchString(channelID)
 }
 
-// makePubSubHubbubRequest makes a subscription or unsubscription request to the PubSubHubbub hub
-// Note: This legacy function is kept for backward compatibility but should use dependency injection instead
-func makePubSubHubbubRequest(channelID, mode string) error {
-
-	hubURL := "https://pubsubhubbub.appspot.com/subscribe"
-
-	// Get callback URL from environment or construct default
-	callbackURL := os.Getenv("FUNCTION_URL")
-	if callbackURL == "" {
-		return fmt.Errorf("FUNCTION_URL environment variable not set")
-	}
-
-	// Construct topic URL for the YouTube channel
-	topicURL := fmt.Sprintf("https://www.youtube.com/feeds/videos.xml?channel_id=%s", channelID)
-
-	// Prepare form data
-	formData := url.Values{
-		"hub.callback":      {callbackURL},
-		"hub.topic":         {topicURL},
-		"hub.mode":          {mode}, // "subscribe" or "unsubscribe"
-		"hub.verify":        {"async"},
-		"hub.lease_seconds": {"86400"}, // 24 hours
-	}
-
-	// Create HTTP request
-	req, err := http.NewRequest("POST", hubURL, strings.NewReader(formData.Encode()))
-	if err != nil {
-		return fmt.Errorf("failed to create request: %v", err)
-	}
-
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("User-Agent", "YouTube-Webhook-Handler/1.0")
-
-	// Send request with timeout
-	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("request failed: %v", err)
-	}
-	defer resp.Body.Close()
-
-	// Check response status
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		bodyBytes, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("hub returned status %d: %s", resp.StatusCode, string(bodyBytes))
-	}
-
-	return nil
-}
 
 // LoadSubscriptionState loads subscription state from Cloud Storage
 func (c *CloudStorageClient) LoadSubscriptionState(ctx context.Context) (*SubscriptionState, error) {
