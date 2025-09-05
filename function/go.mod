@@ -5,7 +5,7 @@ go 1.23.0
 require (
 	cloud.google.com/go/storage v1.55.0
 	github.com/GoogleCloudPlatform/functions-framework-go v1.9.2
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.1
 )
 
 require (
