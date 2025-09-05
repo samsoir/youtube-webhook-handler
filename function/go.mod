@@ -1,4 +1,4 @@
-module github.com/samsoir/youtube-webhook
+module github.com/samsoir/youtube-webhook/function
 
 go 1.23.0
 
