@@ -2,6 +2,14 @@
 
 Thank you for your interest in contributing to the YouTube Webhook Service! This guide will help you get started with development and contributions.
 
+## Architecture & Design
+
+For detailed information about system design and implementation:
+- **[Architecture Overview](docs/architecture/overview.md)** - System design and components
+- **[Dependency Injection](docs/architecture/dependency-injection.md)** - DI patterns and testing
+- **[Testing Guide](docs/development/testing.md)** - Testing strategy and guidelines
+- **[API Documentation](docs/api/endpoints.md)** - Complete API reference
+
 ## Quick Start for Contributors
 
 ```bash

@@ -1,15 +1,17 @@
 package webhook
 
 import (
-	"bytes"
+	"context"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"regexp"
 	"time"
 
+	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
 )
 
@@ -34,32 +36,89 @@ type GitHubDispatch struct {
 	ClientPayload map[string]interface{} `json:"client_payload"`
 }
 
+// Subscription represents a YouTube channel subscription
+type Subscription struct {
+	ChannelID       string    `json:"channel_id"`
+	ChannelName     string    `json:"channel_name,omitempty"`
+	TopicURL        string    `json:"topic_url"`
+	CallbackURL     string    `json:"callback_url"`
+	Status          string    `json:"status"`
+	LeaseSeconds    int       `json:"lease_seconds"`
+	SubscribedAt    time.Time `json:"subscribed_at"`
+	ExpiresAt       time.Time `json:"expires_at"`
+	LastRenewal     time.Time `json:"last_renewal"`
+	RenewalAttempts int       `json:"renewal_attempts"`
+	HubResponse     string    `json:"hub_response"`
+}
+
+// SubscriptionState represents the complete subscription state stored in Cloud Storage
+type SubscriptionState struct {
+	Subscriptions map[string]*Subscription `json:"subscriptions"`
+	Metadata      struct {
+		LastUpdated time.Time `json:"last_updated"`
+		Version     string    `json:"version"`
+	} `json:"metadata"`
+}
+
+// API Response types
+type APIResponse struct {
+	Status    string `json:"status"`
+	ChannelID string `json:"channel_id,omitempty"`
+	Message   string `json:"message,omitempty"`
+	ExpiresAt string `json:"expires_at,omitempty"`
+}
+
+type SubscriptionsListResponse struct {
+	Subscriptions []SubscriptionInfo `json:"subscriptions"`
+	Total         int                `json:"total"`
+	Active        int                `json:"active"`
+	Expired       int                `json:"expired"`
+}
+
+type SubscriptionInfo struct {
+	ChannelID       string  `json:"channel_id"`
+	Status          string  `json:"status"`
+	ExpiresAt       string  `json:"expires_at"`
+	DaysUntilExpiry float64 `json:"days_until_expiry"`
+}
+
+// Renewal Response types
+type RenewalSummaryResponse struct {
+	Status             string          `json:"status"`
+	TotalChecked       int             `json:"total_checked"`
+	RenewalsCandidates int             `json:"renewals_candidates"`
+	RenewalsSucceeded  int             `json:"renewals_succeeded"`
+	RenewalsFailed     int             `json:"renewals_failed"`
+	Results            []RenewalResult `json:"results"`
+}
+
+type RenewalResult struct {
+	ChannelID     string `json:"channel_id"`
+	Success       bool   `json:"success"`
+	Message       string `json:"message"`
+	NewExpiryTime string `json:"new_expiry_time,omitempty"`
+	AttemptCount  int    `json:"attempt_count"`
+}
+
+// Channel ID validation regex
+var channelIDRegex = regexp.MustCompile(`^UC[a-zA-Z0-9_-]{22}$`)
+
+// StorageInterface defines the contract for subscription state storage operations
+type StorageInterface interface {
+	LoadSubscriptionState(ctx context.Context) (*SubscriptionState, error)
+	SaveSubscriptionState(ctx context.Context, state *SubscriptionState) error
+}
+
+// CloudStorageClient implements StorageInterface using Google Cloud Storage
+type CloudStorageClient struct{}
+
+// CloudStorageClient is the production storage implementation
+// For testing, use dependency injection with MockStorageClient
+
 func init() {
 	functions.HTTP("YouTubeWebhook", YouTubeWebhook)
 }
 
-// YouTubeWebhook handles YouTube PubSubHubbub notifications
-func YouTubeWebhook(w http.ResponseWriter, r *http.Request) {
-	// Set CORS headers for all requests
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-
-	switch r.Method {
-	case http.MethodGet:
-		handleVerificationChallenge(w, r)
-	case http.MethodPost:
-		handleNotification(w, r)
-	case http.MethodOptions:
-		// CORS preflight request
-		w.WriteHeader(http.StatusOK)
-	default:
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		if _, err := w.Write([]byte("Method not allowed")); err != nil {
-			fmt.Printf("Error writing response: %v\n", err)
-		}
-	}
-}
 
 // handleVerificationChallenge handles YouTube's verification challenge
 func handleVerificationChallenge(w http.ResponseWriter, r *http.Request) {
@@ -75,154 +134,194 @@ func handleVerificationChallenge(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// handleNotification processes YouTube webhook notifications
-func handleNotification(w http.ResponseWriter, r *http.Request) {
-	// Read and parse XML payload
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		if _, err := w.Write([]byte("Failed to read request body")); err != nil {
-			fmt.Printf("Error writing response: %v\n", err)
-		}
-		return
-	}
 
-	var feed AtomFeed
-	if err := xml.Unmarshal(body, &feed); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		if _, err := w.Write([]byte("Invalid XML")); err != nil {
-			fmt.Printf("Error writing response: %v\n", err)
-		}
-		return
-	}
+// Backward compatibility functions for existing tests
 
-	// Handle empty notifications
-	if feed.Entry == nil {
-		w.WriteHeader(http.StatusOK)
-		if _, err := w.Write([]byte("No video data")); err != nil {
-			fmt.Printf("Error writing response: %v\n", err)
-		}
-		return
-	}
-
-	// Check if this is a new video or just an update
-	if !isNewVideo(feed.Entry) {
-		w.WriteHeader(http.StatusOK)
-		if _, err := w.Write([]byte("Video update ignored")); err != nil {
-			fmt.Printf("Error writing response: %v\n", err)
-		}
-		return
-	}
-
-	// Trigger GitHub workflow
-	if err := triggerGitHubWorkflow(feed.Entry); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		if _, err := w.Write([]byte("GitHub API error")); err != nil {
-			fmt.Printf("Error writing response: %v\n", err)
-		}
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-	if _, err := w.Write([]byte("Webhook processed successfully")); err != nil {
-		fmt.Printf("Error writing response: %v\n", err)
-	}
-}
-
-// triggerGitHubWorkflow sends a repository dispatch event to GitHub
+// triggerGitHubWorkflow is a backward compatibility function that uses the new GitHubClient
 func triggerGitHubWorkflow(entry *Entry) error {
-	token := os.Getenv("GITHUB_TOKEN")
+	client := NewGitHubClient()
 	repoOwner := os.Getenv("REPO_OWNER")
 	repoName := os.Getenv("REPO_NAME")
-	environment := os.Getenv("ENVIRONMENT")
+	return client.TriggerWorkflow(repoOwner, repoName, entry)
+}
 
-	if token == "" || repoOwner == "" || repoName == "" {
-		return fmt.Errorf("missing required environment variables")
+// isNewVideo is a backward compatibility function that uses the new VideoProcessor
+func isNewVideo(entry *Entry) bool {
+	processor := NewVideoProcessor()
+	return processor.IsNewVideo(entry)
+}
+
+// validateChannelID validates YouTube channel ID format
+func validateChannelID(channelID string) bool {
+	return channelIDRegex.MatchString(channelID)
+}
+
+
+// LoadSubscriptionState loads subscription state from Cloud Storage
+func (c *CloudStorageClient) LoadSubscriptionState(ctx context.Context) (*SubscriptionState, error) {
+
+	bucketName := os.Getenv("SUBSCRIPTION_BUCKET")
+	if bucketName == "" {
+		return nil, fmt.Errorf("SUBSCRIPTION_BUCKET environment variable not set")
 	}
 
-	// Create dispatch payload
-	dispatch := GitHubDispatch{
-		EventType: "youtube-video-published",
-		ClientPayload: map[string]interface{}{
-			"video_id":    entry.VideoID,
-			"channel_id":  entry.ChannelID,
-			"title":       entry.Title,
-			"published":   entry.Published,
-			"updated":     entry.Updated,
-			"video_url":   fmt.Sprintf("https://www.youtube.com/watch?v=%s", entry.VideoID),
-			"environment": environment,
-		},
+	client, err := storage.NewClient(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create storage client: %v", err)
+	}
+	defer client.Close()
+
+	bucket := client.Bucket(bucketName)
+	obj := bucket.Object("subscriptions/state.json")
+
+	reader, err := obj.NewReader(ctx)
+	if err != nil {
+		// If file doesn't exist, return empty state
+		if err == storage.ErrObjectNotExist {
+			return &SubscriptionState{
+				Subscriptions: make(map[string]*Subscription),
+				Metadata: struct {
+					LastUpdated time.Time `json:"last_updated"`
+					Version     string    `json:"version"`
+				}{
+					LastUpdated: time.Now(),
+					Version:     "1.0",
+				},
+			}, nil
+		}
+		return nil, fmt.Errorf("failed to read state file: %v", err)
+	}
+	defer reader.Close()
+
+	data, err := io.ReadAll(reader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read state data: %v", err)
+	}
+
+	var state SubscriptionState
+	if err := json.Unmarshal(data, &state); err != nil {
+		return nil, fmt.Errorf("failed to parse state JSON: %v", err)
+	}
+
+	// Initialize subscriptions map if nil
+	if state.Subscriptions == nil {
+		state.Subscriptions = make(map[string]*Subscription)
+	}
+
+	return &state, nil
+}
+
+// SaveSubscriptionState saves subscription state to Cloud Storage
+func (c *CloudStorageClient) SaveSubscriptionState(ctx context.Context, state *SubscriptionState) error {
+
+	bucketName := os.Getenv("SUBSCRIPTION_BUCKET")
+	if bucketName == "" {
+		return fmt.Errorf("SUBSCRIPTION_BUCKET environment variable not set")
+	}
+
+	client, err := storage.NewClient(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to create storage client: %v", err)
+	}
+	defer client.Close()
+
+	// Update metadata
+	state.Metadata.LastUpdated = time.Now()
+	if state.Metadata.Version == "" {
+		state.Metadata.Version = "1.0"
 	}
 
 	// Marshal to JSON
-	jsonData, err := json.Marshal(dispatch)
+	data, err := json.MarshalIndent(state, "", "  ")
 	if err != nil {
-		return fmt.Errorf("failed to marshal JSON: %v", err)
+		return fmt.Errorf("failed to marshal state: %v", err)
 	}
 
-	// Create HTTP request - allow override for testing
-	baseURL := os.Getenv("GITHUB_API_BASE_URL")
-	if baseURL == "" {
-		baseURL = "https://api.github.com"
-	}
-	url := fmt.Sprintf("%s/repos/%s/%s/dispatches", baseURL, repoOwner, repoName)
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
-	if err != nil {
-		return fmt.Errorf("failed to create request: %v", err)
+	bucket := client.Bucket(bucketName)
+	obj := bucket.Object("subscriptions/state.json")
+
+	writer := obj.NewWriter(ctx)
+	writer.ContentType = "application/json"
+
+	if _, err := writer.Write(data); err != nil {
+		writer.Close()
+		return fmt.Errorf("failed to write state data: %v", err)
 	}
 
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", fmt.Sprintf("token %s", token))
-	req.Header.Set("Accept", "application/vnd.github.v3+json")
-
-	// Send request
-	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("failed to send request: %v", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("GitHub API returned status %d", resp.StatusCode)
+	if err := writer.Close(); err != nil {
+		return fmt.Errorf("failed to close writer: %v", err)
 	}
 
 	return nil
 }
 
-// isNewVideo determines if this is a new video or just an update
-func isNewVideo(entry *Entry) bool {
-	// Parse timestamps
-	published, err := time.Parse(time.RFC3339, entry.Published)
-	if err != nil {
-		// If we can't parse the timestamp, assume it's new
-		return true
+// writeJSONResponse writes a JSON response with the given status code
+func writeJSONResponse(w http.ResponseWriter, statusCode int, response interface{}) {
+	w.WriteHeader(statusCode)
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		fmt.Printf("Error encoding JSON response: %v\n", err)
 	}
-
-	updated, err := time.Parse(time.RFC3339, entry.Updated)
-	if err != nil {
-		// If we can't parse the timestamp, assume it's new
-		return true
-	}
-
-	now := time.Now()
-
-	// Consider a video "new" if:
-	// 1. It was published within the last hour
-	// 2. The difference between published and updated time is small (less than 15 minutes)
-	timeSincePublished := now.Sub(published)
-	updatePublishDiff := updated.Sub(published)
-
-	// If published more than 1 hour ago, it's likely an old video update
-	if timeSincePublished > time.Hour {
-		return false
-	}
-
-	// If there's a large gap between publish and update, it's likely an update to an old video
-	if updatePublishDiff > 15*time.Minute {
-		return false
-	}
-
-	return true
 }
 
+// writeErrorResponse writes a standardized error response
+func writeErrorResponse(w http.ResponseWriter, statusCode int, channelID, message string) {
+	response := APIResponse{
+		Status:  "error",
+		Message: message,
+	}
+	if channelID != "" {
+		response.ChannelID = channelID
+	}
+	writeJSONResponse(w, statusCode, response)
+}
+
+
+
+
+
+
+// Configuration helper functions
+
+
+// getRenewalThreshold returns the time threshold for renewal
+func getRenewalThreshold() time.Duration {
+	thresholdHours := os.Getenv("RENEWAL_THRESHOLD_HOURS")
+	if thresholdHours == "" {
+		return 12 * time.Hour // Default: 12 hours
+	}
+
+	if hours, err := time.ParseDuration(thresholdHours + "h"); err == nil {
+		return hours
+	}
+	return 12 * time.Hour
+}
+
+// getMaxRenewalAttempts returns the maximum number of renewal attempts
+func getMaxRenewalAttempts() int {
+	maxAttemptsStr := os.Getenv("MAX_RENEWAL_ATTEMPTS")
+	if maxAttemptsStr == "" {
+		return 3 // Default: 3 attempts
+	}
+
+	var attempts int
+	if _, err := fmt.Sscanf(maxAttemptsStr, "%d", &attempts); err == nil && attempts > 0 {
+		return attempts
+	}
+	return 3
+}
+
+// getLeaseSeconds returns the lease duration in seconds
+func getLeaseSeconds() int {
+	leaseSecondsStr := os.Getenv("SUBSCRIPTION_LEASE_SECONDS")
+	if leaseSecondsStr == "" {
+		return 86400 // Default: 24 hours
+	}
+
+	var seconds int
+	if _, err := fmt.Sscanf(leaseSecondsStr, "%d", &seconds); err == nil && seconds > 0 {
+		return seconds
+	}
+	return 86400
+}
+
+// Legacy functions removed - use dependency injection instead

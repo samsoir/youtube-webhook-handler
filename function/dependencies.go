@@ -1,0 +1,59 @@
+package webhook
+
+import "sync"
+
+// Dependencies holds all the external dependencies for the webhook service.
+type Dependencies struct {
+	StorageClient StorageService       // Use proper storage interface
+	PubSubClient  PubSubClient
+	GitHubClient  GitHubClientInterface
+}
+
+var (
+	globalDependencies *Dependencies
+	dependenciesMutex  sync.RWMutex
+	dependenciesOnce   sync.Once
+)
+
+// GetDependencies returns the global dependencies instance.
+// Creates production dependencies if none exist.
+func GetDependencies() *Dependencies {
+	// Use sync.Once to ensure thread-safe initialization
+	dependenciesOnce.Do(func() {
+		if globalDependencies == nil {
+			globalDependencies = CreateProductionDependencies()
+		}
+	})
+
+	// Now safe to read without race condition
+	dependenciesMutex.RLock()
+	defer dependenciesMutex.RUnlock()
+	return globalDependencies
+}
+
+// SetDependencies sets the global dependencies (primarily for testing).
+func SetDependencies(deps *Dependencies) {
+	dependenciesMutex.Lock()
+	defer dependenciesMutex.Unlock()
+	globalDependencies = deps
+	// Reset the Once so it can be used again if needed
+	dependenciesOnce = sync.Once{}
+}
+
+// CreateProductionDependencies creates dependencies for production use.
+func CreateProductionDependencies() *Dependencies {
+	return &Dependencies{
+		StorageClient: NewCloudStorageService(), // Use real Cloud Storage with caching
+		PubSubClient:  NewHTTPPubSubClient(),    // Use real HTTP PubSub client
+		GitHubClient:  NewGitHubClient(),        // Use real GitHub client
+	}
+}
+
+// CreateTestDependencies creates dependencies for testing.
+func CreateTestDependencies() *Dependencies {
+	return &Dependencies{
+		StorageClient: NewMockStorageClient(),  // Mock for testing only
+		PubSubClient:  NewMockPubSubClient(),   // Mock for testing only  
+		GitHubClient:  NewMockGitHubClient(),   // Mock for testing only
+	}
+}

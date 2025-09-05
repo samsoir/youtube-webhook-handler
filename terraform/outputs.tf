@@ -18,6 +18,11 @@ output "storage_bucket_name" {
   value       = google_storage_bucket.function_source.name
 }
 
+output "subscription_bucket_name" {
+  description = "Name of the Cloud Storage bucket for subscription state"
+  value       = google_storage_bucket.subscription_state.name
+}
+
 output "project_id" {
   description = "The Google Cloud project ID"
   value       = var.project_id
