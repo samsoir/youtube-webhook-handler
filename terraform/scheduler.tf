@@ -66,11 +66,6 @@ resource "google_cloud_scheduler_job" "subscription_renewal" {
     }
   }
 
-  labels = merge(local.common_labels, {
-    component = "scheduler"
-    purpose   = "subscription-renewal"
-  })
-
   depends_on = [
     google_project_service.scheduler_api,
     google_cloudfunctions2_function.youtube_webhook,
