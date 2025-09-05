@@ -398,8 +398,8 @@ func TestMockGitHubClient_Reset(t *testing.T) {
 	mock := NewMockGitHubClient()
 	
 	// Add some data to the mock
-	mock.TriggerWorkflow("test-owner", "test-repo", &Entry{VideoID: "test1", Title: "Test 1"})
-	mock.TriggerWorkflow("test-owner", "test-repo", &Entry{VideoID: "test2", Title: "Test 2"})
+	_ = mock.TriggerWorkflow("test-owner", "test-repo", &Entry{VideoID: "test1", Title: "Test 1"})
+	_ = mock.TriggerWorkflow("test-owner", "test-repo", &Entry{VideoID: "test2", Title: "Test 2"})
 	
 	// Verify data exists
 	assert.Equal(t, 2, mock.GetTriggerCallCount())

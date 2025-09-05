@@ -251,7 +251,7 @@ func TestCloudStorageService_LoadSubscriptionState(t *testing.T) {
 		
 		data, err := json.MarshalIndent(testState, "", "  ")
 		require.NoError(t, err)
-		mockOps.PutObject(context.Background(), "test-bucket", "subscriptions/state.json", data)
+		_ = mockOps.PutObject(context.Background(), "test-bucket", "subscriptions/state.json", data)
 
 		// Load should succeed
 		ctx := context.Background()
