@@ -60,6 +60,11 @@ func TestSaveSubscriptionState_MissingBucket(t *testing.T) {
 
 // TestCloudStorage_ComprehensiveErrorCoverage tests all Cloud Storage error paths
 func TestCloudStorage_ComprehensiveErrorCoverage(t *testing.T) {
+	// Skip in CI environment to avoid real GCS API calls
+	if os.Getenv("CI") == "true" || os.Getenv("GITHUB_ACTIONS") == "true" {
+		t.Skip("Skipping real GCS integration test in CI environment")
+	}
+
 	ctx := context.Background()
 
 	t.Run("LoadSubscriptionState_storage_errors", func(t *testing.T) {
@@ -105,6 +110,11 @@ func TestCloudStorage_ComprehensiveErrorCoverage(t *testing.T) {
 
 // TestSaveSubscriptionState_CloudStorageEdgeCases tests additional Cloud Storage edge cases
 func TestSaveSubscriptionState_CloudStorageEdgeCases(t *testing.T) {
+	// Skip in CI environment to avoid real GCS API calls
+	if os.Getenv("CI") == "true" || os.Getenv("GITHUB_ACTIONS") == "true" {
+		t.Skip("Skipping real GCS integration test in CI environment")
+	}
+
 	ctx := context.Background()
 
 	t.Run("test_metadata_version_setting", func(t *testing.T) {
@@ -138,6 +148,11 @@ func TestSaveSubscriptionState_CloudStorageEdgeCases(t *testing.T) {
 
 // TestLoadSubscriptionState_EdgeCases tests edge cases in subscription state loading
 func TestLoadSubscriptionState_EdgeCases(t *testing.T) {
+	// Skip in CI environment to avoid real GCS API calls
+	if os.Getenv("CI") == "true" || os.Getenv("GITHUB_ACTIONS") == "true" {
+		t.Skip("Skipping real GCS integration test in CI environment")
+	}
+
 	ctx := context.Background()
 
 	t.Run("test_subscriptions_map_initialization", func(t *testing.T) {
