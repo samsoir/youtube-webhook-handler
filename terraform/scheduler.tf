@@ -10,7 +10,7 @@ resource "google_project_service" "scheduler_api" {
 
 # Service account for Cloud Scheduler (with necessary permissions)
 resource "google_service_account" "scheduler_sa" {
-  account_id   = "yt-scheduler-${var.environment}-${local.unique_suffix}"
+  account_id   = "yt-sched-${substr(var.environment, 0, 4)}-${local.unique_suffix}"
   display_name = "YouTube Scheduler Service Account (${var.environment})"
   description  = "Service account for Cloud Scheduler to trigger subscription renewals (${var.environment})"
   project      = var.project_id
