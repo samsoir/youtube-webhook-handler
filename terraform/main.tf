@@ -211,12 +211,13 @@ resource "google_cloudfunctions2_function" "youtube_webhook" {
   ]
 }
 
-# IAM binding to allow public access to the webhook
+# IAM member to allow public access to the webhook
 # Gen 2 Cloud Functions use Cloud Run underneath, so we need to grant roles/run.invoker
-resource "google_cloud_run_service_iam_binding" "webhook_invoker" {
+# Using iam_member instead of iam_binding to avoid conflicts with scheduler_invoker
+resource "google_cloud_run_service_iam_member" "webhook_public_invoker" {
   project  = google_cloudfunctions2_function.youtube_webhook.project
   location = google_cloudfunctions2_function.youtube_webhook.location
   service  = google_cloudfunctions2_function.youtube_webhook.name
   role     = "roles/run.invoker"
-  members  = ["allUsers"]
+  member   = "allUsers"
 }
