@@ -19,12 +19,13 @@ resource "google_service_account" "scheduler_sa" {
 }
 
 # Grant the scheduler service account permission to invoke the function
-resource "google_cloudfunctions2_function_iam_member" "scheduler_invoker" {
-  project        = google_cloudfunctions2_function.youtube_webhook.project
-  location       = google_cloudfunctions2_function.youtube_webhook.location
-  cloud_function = google_cloudfunctions2_function.youtube_webhook.name
-  role           = "roles/cloudfunctions.invoker"
-  member         = "serviceAccount:${google_service_account.scheduler_sa.email}"
+# Gen 2 Cloud Functions use Cloud Run underneath, so we need to grant roles/run.invoker
+resource "google_cloud_run_service_iam_member" "scheduler_invoker" {
+  project  = google_cloudfunctions2_function.youtube_webhook.project
+  location = google_cloudfunctions2_function.youtube_webhook.location
+  service  = google_cloudfunctions2_function.youtube_webhook.name
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${google_service_account.scheduler_sa.email}"
 
   depends_on = [google_service_account.scheduler_sa]
 }
@@ -69,7 +70,7 @@ resource "google_cloud_scheduler_job" "subscription_renewal" {
   depends_on = [
     google_project_service.scheduler_api,
     google_cloudfunctions2_function.youtube_webhook,
-    google_cloudfunctions2_function_iam_member.scheduler_invoker
+    google_cloud_run_service_iam_member.scheduler_invoker
   ]
 }
 
