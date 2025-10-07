@@ -114,10 +114,16 @@ build-cli: ## Build the CLI tool
 	@go build -o $(CLI_BINARY) ./cmd/youtube-webhook
 	@echo "$(GREEN)✓ CLI tool built: $(CLI_BINARY)$(NC)"
 
-install-cli: build-cli ## Build and install the CLI tool to GOPATH/bin
+install-cli: build-cli ## Build and install the CLI tool to /usr/local/bin
 	@echo "$(YELLOW)Installing CLI tool...$(NC)"
-	@go install ./cmd/youtube-webhook
-	@echo "$(GREEN)✓ CLI tool installed to $$GOPATH/bin/youtube-webhook$(NC)"
+	@if [ -w /usr/local/bin ]; then \
+		cp $(CLI_BINARY) /usr/local/bin/$(CLI_BINARY); \
+		chmod +x /usr/local/bin/$(CLI_BINARY); \
+	else \
+		sudo cp $(CLI_BINARY) /usr/local/bin/$(CLI_BINARY); \
+		sudo chmod +x /usr/local/bin/$(CLI_BINARY); \
+	fi
+	@echo "$(GREEN)✓ CLI tool installed to /usr/local/bin/$(CLI_BINARY)$(NC)"
 
 ## Local Development Commands
 
