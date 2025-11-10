@@ -3,7 +3,7 @@ module github.com/samsoir/youtube-webhook/function
 go 1.24.0
 
 require (
-	cloud.google.com/go/storage v1.57.0
+	cloud.google.com/go/storage v1.57.1
 	github.com/GoogleCloudPlatform/functions-framework-go v1.9.2
 	github.com/stretchr/testify v1.10.0
 )
